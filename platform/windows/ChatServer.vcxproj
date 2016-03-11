@@ -14,7 +14,7 @@
     <ClCompile Include="..\..\src\connection.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\server.cpp" />
-    <ClCompile Include="platform.c" />
+    <ClCompile Include="platform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\connection.h" />

@@ -8,6 +8,8 @@
 #ifndef __CHATSERVER_CONNECTION_H__
 #define __CHATSERVER_CONNECTION_H__
 
+#include "platform.h"
+
 class Connection
 {
     ;
