@@ -12,4 +12,10 @@
 #define UNREFERENCED_PARAMETER(P) (P)
 #endif UNREFERENCED_PARAMETER
 
+enum
+{
+    CS_OK                  =  0,
+    CS_INVALID_ARGS        = -1
+};
+
 #endif __CHATSERVER_DEFS_H__
