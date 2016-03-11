@@ -9,13 +9,34 @@
 
 int check_number(char* str, int& out)
 {
-    
+    out = DEFAULT_PORT_NUMBER;
+
+    //check if the parameter contains digits
+    int i = 0;
+    int found = FALSE;
+    while (str[i] != '\0')
+    {
+        if (isdigit(str[i]) != 0)
+        {
+            found = TRUE;
+            break;
+        }
+        //go to next char
+        i++;
+    }
+
+    if (found)
+    {
+        out = atoi(str);
+        return CS_OK;
+    }
+    else
+        return CS_INVALID_ARGS;
 }
 
-int main(int argc, char* argv[])
+int parse_arguments(int argc, char* argv[], FILE* logfile, int& port_number)
 {
-    int i, j;
-    int port_number = DEFAULT_PORT_NUMBER;
+    int i;
 
     printf("Usage: ChatServer [-port port_number] [-log log_file_name]\n");
 
@@ -31,11 +52,35 @@ int main(int argc, char* argv[])
         //check arguments
         if (strcmp(argv[i], "-port") == 0)
         {
-            ////check the argument is a number
-            //for (j = 0; 
+            //parse port number and exit in case of error
+            if (check_number(argv[i + 1], port_number) == CS_INVALID_ARGS)
+            {
+                printf("Invalid port number given\n");
+                return CS_INVALID_ARGS;
+            }
+        }
+        if (strcmp(argv[i], "-log") == 0)
+        {
+            logfile = fopen(argv[i + 1], "at");
+            if (logfile == NULL)
+            {
+                printf("Invalid log filename given\n");
+                return CS_INVALID_ARGS;
+            }
         }
     }
 
+    return CS_OK;
+}
+
+int main(int argc, char* argv[])
+{    
+    int port_number = DEFAULT_PORT_NUMBER;
+    FILE* logfile = NULL;
+
+    //parse arguments
+    if (parse_arguments(argc, argv, logfile, port_number) != CS_OK)
+        return CS_INVALID_ARGS;
 
     Server chatserver;
 

@@ -12,6 +12,14 @@
 #define UNREFERENCED_PARAMETER(P) (P)
 #endif UNREFERENCED_PARAMETER
 
+#ifndef TRUE
+#define TRUE  1
+#endif //TRUE
+
+#ifndef FALSE
+#define FALSE 0
+#endif //FALSE
+
 enum
 {
     CS_OK                  =  0,
