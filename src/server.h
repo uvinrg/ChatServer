@@ -14,9 +14,25 @@ class Server
 {
 public:
     int try_on(int port_number);
-    int start_on(int port_number);
+    int start_on(int port_number, FILE* logfile = NULL);
+
+    Server():
+        log(NULL) 
+    { 
+        ;
+    }
+
+    ~Server() 
+    { 
+        if (log != NULL) 
+        {
+            fclose(log); 
+            log = NULL;
+        }
+    }
 
 private:
+    FILE* log;
 
 };
 

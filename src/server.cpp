@@ -14,9 +14,12 @@ int Server::try_on(int port_number)
     return CS_OK;
 }
 
-int Server::start_on(int port_number)
+int Server::start_on(int port_number, FILE* logfile)
 {
     UNREFERENCED_PARAMETER(port_number);
+
+    //assign file pointer
+    log = logfile;
 
     return CS_OK;
 }

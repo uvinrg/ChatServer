@@ -82,17 +82,17 @@ int main(int argc, char* argv[])
     if (parse_arguments(argc, argv, logfile, port_number) != CS_OK)
         return CS_INVALID_ARGS;
 
-    //Server chatserver;
+    Server chatserver;
 
-    //if (chatserver.try_on(port_number) != 0)
-    //{
-    //    printf("Starting on %d port number\n", port_number);
-    //    chatserver.start_on(port_number);
-    //}
-    //else
-    //{
-    //    printf("Port number %d in use!\n");
-    //}
+    if (chatserver.try_on(port_number) != 0)
+    {
+        printf("Starting on %d port number\n", port_number);
+        chatserver.start_on(port_number, logfile);
+    }
+    else
+    {
+        printf("Port number %d in use!\n");
+    }    
 
     return CS_OK;
 }
