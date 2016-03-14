@@ -247,6 +247,9 @@ int Win32Connection::start()
 //receive next message from someone
 int Win32Connection::receiveNextMessage(string& user, string& message)
 {
+    UNREFERENCED_PARAMETER(user);
+    UNREFERENCED_PARAMETER(message);
+
     //TODO 
     //wait on semaphore until msgList non-empty
     //then get message from msgList from user in usrList
