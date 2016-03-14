@@ -21,6 +21,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <queue>
 
 using namespace std;
 
@@ -75,6 +76,8 @@ public:
     //thread for sending messages
     void InternalSendMessageThread();
 
+    int telnet_decode(string &msg, char* buffer, int size, SOCKET socket);
+
 private:
     int started;
 
@@ -82,7 +85,10 @@ private:
 
     set<SOCKET> sockets;
     map<SOCKET, string> names;
-    map<SOCKET, string> messages; //partially received messages from the users
+    map<SOCKET, string> messages; //partially received messages from the users	
+
+    queue<string> msgList;
+    queue<string> usrList;
 };
 
 #define PLATFORM_CONNECTION Win32Connection

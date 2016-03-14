@@ -161,6 +161,7 @@ void Win32Connection::InternalReadMessageThread()
     int activity = 0;
     char buffer[MAX_LINE_SIZE] = {0};
     int size = 0;
+    int result = 0;
 
     //set of socket descriptors
     fd_set readfds;
@@ -202,21 +203,10 @@ void Win32Connection::InternalReadMessageThread()
                     buffer[size] = '\0';
 
                     //use telnet RFC to check for backspace, delete, newline, etc
-
-                    //result = telnet_decode(messages[sock], buffer);
-
-                    //if (result)
-                    //    send_to_processing_enqueue_using_crit_section();
-
-                    ////it will either create a new message or add to it
-                    //messages[sock] += buffer;
-
-                    //check newline
-                    
+                    result = telnet_decode(messages[sock], buffer, strlen(buffer), sock);                    
                 }
             }
         }
-
     }
 }
 
@@ -227,6 +217,46 @@ void Win32Connection::InternalSendMessageThread()
     {
         ;
     }
+}
+
+//take the code from the buffer and transform it into a string
+int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET socket)
+{
+	//parse the received buffer 
+	for(int i = 0; i < size; i++)
+	{
+        //if first character is non-printable, skip entire sequence
+        if (i == 0 && (buffer[i] < 32 || buffer[i] > 126) )
+            return CS_INVALID_ARGS;
+		//if delete or ctr + backspace ascii code remove next character
+		if( buffer[i] == 127 ||  buffer[i] == 224)
+		{            
+			continue;
+		}
+		//if backspace ascii code then remove previous character
+		else if ( buffer[i] == 8)
+		{
+			msg.erase(msg.end() - 1);
+		}
+        //check for newline
+        else if ( buffer[i] == 13 || buffer[i] == 10)
+        {
+            //skip next char if needed
+            if (i + 1 < size && buffer[i + 1] < 32)
+                i++;
+            //our message is ready, send it to server
+            msgList.push(msg);
+            usrList.push(names[socket]);
+            //reset message for current client
+            msg = "";
+        }
+        //only add printable characters
+		else if (buffer[i] >= 32 && buffer[i] <= 126)
+		{
+			msg += buffer[i];
+		}	
+	}
+	return CS_OK;
 }
 
 //start the server
@@ -318,7 +348,10 @@ int Win32Connection::start()
 //receive next message from someone
 int Win32Connection::receiveNextMessage(string& user, string& message)
 {
-
+    //TODO 
+    //wait on semaphore until msgList non-empty
+    //then get message from msgList from user in usrList
+    //and process it
     return CS_OK;
 }
 
