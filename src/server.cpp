@@ -5,21 +5,33 @@
 
 ----------------------------------------*/
 
+#include "platform.h"
 #include "server.h"
-
-int Server::try_on(int port_number)
-{
-    UNREFERENCED_PARAMETER(port_number);
-
-    return CS_OK;
-}
 
 int Server::start_on(int port_number, FILE* logfile)
 {
-    UNREFERENCED_PARAMETER(port_number);
+    string user1, user2, message, room;    
 
     //assign file pointer
     log = logfile;
+
+    //create a new connection
+    conn = new PLATFORM_CONNECTION(port_number);
+
+    //try to start the server
+    if (conn->start() != CS_OK)
+        return CS_FAIL;
+
+    //message loop
+    while(ALWAYS_TRUE)
+    {
+        //get next message received by the server connection
+        if (conn->receiveNextMessage(user1, message) == CS_OK)
+        {
+            //DO SOMETHING based on message
+            conn->sendMessageToUser(user1, "Your message: " + message);
+        }
+    }
 
     return CS_OK;
 }

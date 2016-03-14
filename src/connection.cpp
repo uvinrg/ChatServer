@@ -5,4 +5,5 @@
 
 ----------------------------------------*/
 
+#include "platform.h"
 #include "connection.h"

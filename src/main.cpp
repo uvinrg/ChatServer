@@ -84,15 +84,12 @@ int main(int argc, char* argv[])
 
     Server chatserver;
 
-    if (chatserver.try_on(port_number) != 0)
-    {
-        printf("Starting on %d port number\n", port_number);
-        chatserver.start_on(port_number, logfile);
-    }
-    else
-    {
-        printf("Port number %d in use!\n");
-    }    
+    printf("Starting on %d port number\n", port_number);
+    if (chatserver.start_on(port_number, logfile) != 0)
+    {        
+        printf("Failed to start!\n");
+        return CS_FAIL;
+    }   
 
     return CS_OK;
 }

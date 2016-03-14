@@ -8,16 +8,14 @@
 #ifndef __CHATSERVER_SERVER_H__
 #define __CHATSERVER_SERVER_H__
 
-#include "platform.h"
-
 class Server
 {
 public:
-    int try_on(int port_number);
     int start_on(int port_number, FILE* logfile = NULL);
 
     Server():
-        log(NULL) 
+        log(NULL),
+        conn(NULL)
     { 
         ;
     }
@@ -29,10 +27,17 @@ public:
             fclose(log); 
             log = NULL;
         }
+
+        if (conn != NULL)
+        {
+            delete conn;
+            conn = NULL;
+        }
     }
 
 private:
-    FILE* log;
+    FILE *log;
+    Connection *conn;
 
 };
 
