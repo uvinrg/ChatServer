@@ -14,12 +14,32 @@
     <ClCompile Include="..\..\src\connection.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\server.cpp" />
+    <ClCompile Include="..\..\src\unix\unixconnection.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\unix\unixsemaphore.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\win32\w32connection.cpp" />
+    <ClCompile Include="..\..\src\win32\w32semaphore.cpp" />
     <ClCompile Include="platform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\connection.h" />
     <ClInclude Include="..\..\src\defs.h" />
     <ClInclude Include="..\..\src\server.h" />
+    <ClInclude Include="..\..\src\unix\unixconnection.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\..\src\unix\unixsemaphore.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\..\src\win32\w32connection.h" />
+    <ClInclude Include="..\..\src\win32\w32semaphore.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="platform.h" />
   </ItemGroup>
