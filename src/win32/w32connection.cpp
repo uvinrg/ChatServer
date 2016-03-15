@@ -38,13 +38,13 @@ DWORD WINAPI SendMessageThread( LPVOID lpData )
 //actual thread function
 void Win32Connection::InternalAcceptThread()
 {
-    SOCKET new_socket = 0;
+    SOCKET new_socket;
     struct sockaddr_in address;
-    int addrlen;
+    int addrlen = sizeof(address);
 
     while(ALWAYS_TRUE)
     {       
-        if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) >= 0)
+        if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) != INVALID_SOCKET)
         {
             //enter critical section
             userCriticalSection.wait();
@@ -64,6 +64,9 @@ void Win32Connection::InternalAcceptThread()
 
             //leave section
             userCriticalSection.increaseCount(1);
+
+            //mark the number of sockets added
+            socketsListEmpty.increaseCount(1);
         }
     }
 }
@@ -86,6 +89,8 @@ void Win32Connection::InternalReadMessageThread()
 
     while (ALWAYS_TRUE)
     {
+        socketsListEmpty.wait();
+
         //clear the socket set
         FD_ZERO(&readfds);
 
@@ -127,17 +132,19 @@ void Win32Connection::InternalReadMessageThread()
 
                     userCriticalSection.wait();
                     localmsg = messages[sock];
-                    userCriticalSection.create(1);
+                    userCriticalSection.increaseCount(1);
 
                     //use telnet RFC to check for backspace, delete, newline, etc
                     result = telnet_decode(localmsg, buffer, strlen(buffer), sock);     
 
                     userCriticalSection.wait();
                     messages[sock] = localmsg;
-                    userCriticalSection.create(1);
+                    userCriticalSection.increaseCount(1);
                 }
             }
         }
+
+        socketsListEmpty.increaseCount(1);
     }
 }
 
@@ -161,6 +168,7 @@ void Win32Connection::InternalSendMessageThread()
         SOCKET sock = user_sock[writemsg.user];
 
         //append newline to message
+        writemsg.msg += "\r";
         writemsg.msg += "\n";
 
         //if user is in lobby, means we are sending the message only to him
@@ -170,6 +178,10 @@ void Win32Connection::InternalSendMessageThread()
 
             if (result == SOCKET_ERROR) 
             {
+                //decrease number of sockets by 1 in the semaphore
+                socketsListEmpty.wait();
+
+                //close the socket
                 closesocket(sock);
 
                 //remove user from user list
@@ -203,7 +215,7 @@ int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET s
 	for(int i = 0; i < size; i++)
 	{
         //if first character is non-printable, skip entire sequence
-        if (i == 0 && (buffer[i] < 32 || buffer[i] > 126) )
+        if (i == 0 && (buffer[i] < 32 || buffer[i] > 126) && buffer[i] != 13 && buffer[i] != 10 )
             return CS_INVALID_ARGS;
 		//if delete or ctr + backspace ascii code remove next character
 		if( buffer[i] == 127 ||  buffer[i] == 224)
@@ -223,7 +235,7 @@ int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET s
                 i++;
 
             //prepare the message
-            readmessage readmsg = {0};
+            readmessage readmsg;
             readmsg.msg = msg;
 
             userCriticalSection.wait();
@@ -253,7 +265,7 @@ int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET s
 //receive next message from someone
 int Win32Connection::receiveNextMessage(string& user, string& message)
 {
-    readmessage readmsg = {0};
+    readmessage readmsg;
 
     //wait until there are messages in the queue
     readMsgListEmpty.wait();
@@ -282,7 +294,7 @@ int Win32Connection::sendMessageToOthers(string user, string message, string roo
 //send a message back to the user from the server
 int Win32Connection::sendMessageToUser(string user, string message)
 {
-    writemessage writemsg = {0};
+    writemessage writemsg;
     writemsg.user = user;
     writemsg.msg = message;
     writemsg.room = " lobby"; //normal rooms cannot contain spaces
@@ -348,7 +360,7 @@ int Win32Connection::start()
     // Create the structure for binding the socket to the listening port
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;     
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_addr.s_addr = inet_addr( "127.0.0.1" ) ; //INADDR_ANY;
     serverAddr.sin_port = htons((USHORT)port);
 
     // Bind the Server socket to the address & port
@@ -371,18 +383,20 @@ int Win32Connection::start()
 
     //initial user count
     user_count = 0;
+    //create sockets list semaphore
+    socketsListEmpty.create(0);
 
     //create critical section for modifying users
     userCriticalSection.create(1);
 
     //create critical section
     readCriticalSection.create(1);
-    //create message list
+    //create message list semaphore
     readMsgListEmpty.create(0);
 
     //create critical section
     writeCriticalSection.create(1);
-    //create message list
+    //create message list semaphore
     writeMsgListEmpty.create(0);
 
     //create separate thread for select()

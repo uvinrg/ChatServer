@@ -76,6 +76,8 @@ private:
 
     //the list of sockets
     set<SOCKET> sockets;
+    //sync for waiting if socket list is empty
+    W32semaphore socketsListEmpty;
 
     map<SOCKET, string> sock_user; //map to get from socket to user
     map<string, SOCKET> user_sock; //map to get from user to socket
