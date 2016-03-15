@@ -31,6 +31,7 @@ using namespace std;
 #include "../../src/defs.h"
 #include "../../src/connection.h"
 #include "../../src/server.h"
+#include "../../src/win32/w32semaphore.h"
 #include "../../src/win32/w32connection.h"
 
 #define PLATFORM_CONNECTION Win32Connection

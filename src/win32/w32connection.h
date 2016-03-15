@@ -8,6 +8,19 @@
 #ifndef __CHATSERVER_W32CONNECTION_H__
 #define __CHATSERVER_W32CONNECTION_H__
 
+struct readmessage
+{
+    string user;
+    string msg;
+};
+
+struct writemessage
+{
+    string user;
+    string msg;
+    string room;
+};
+
 class Win32Connection : public Connection
 {
 public:
@@ -55,16 +68,42 @@ public:
     int telnet_decode(string &msg, char* buffer, int size, SOCKET socket);
 
 private:
+    //server started indicator
     int started;
 
+    //the server socket
     SOCKET hServerSocket;
 
+    //the list of sockets
     set<SOCKET> sockets;
-    map<SOCKET, string> names;
+
+    map<SOCKET, string> sock_user; //map to get from socket to user
+    map<string, SOCKET> user_sock; //map to get from user to socket
+    map<string, string> user_room; //map to get from user to its room
     map<SOCKET, string> messages; //partially received messages from the users	
 
-    queue<string> msgList;
-    queue<string> usrList;
+    //critical section for modifying users
+    W32semaphore userCriticalSection;
+
+    //sync for read messages
+    W32semaphore readCriticalSection;    
+    //sync for waiting if message list to be read is empty
+    W32semaphore readMsgListEmpty;
+    //message list to be read
+    queue<readmessage> readMsgList;
+
+    //sync for write messages
+    W32semaphore writeCriticalSection;    
+    //sync for waiting if message list to be written is empty
+    W32semaphore writeMsgListEmpty;
+    //message list to be written
+    queue<writemessage> writeMsgList;
+
+    //the list of users in each room
+    map<string, set<string> > rooms;
+
+    //current number of users on the server
+    int user_count;
 };
 
 #endif //__CHATSERVER_W32CONNECTION_H__

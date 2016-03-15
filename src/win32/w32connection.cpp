@@ -46,8 +46,24 @@ void Win32Connection::InternalAcceptThread()
     {       
         if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) >= 0)
         {
+            //enter critical section
+            userCriticalSection.wait();
+
+            //create a user for the socket with a space followed by a number (illegal for user names)
+            sock_user[new_socket] = " ";
+            sock_user[new_socket] += to_string(user_count);
+            user_sock[ sock_user[new_socket] ] = new_socket;
+            //create an empty message for the user
+            messages[new_socket] = "";
+
+            //increment number of users
+            user_count++;
+
             //add socket to list
             sockets.insert(new_socket);
+
+            //leave section
+            userCriticalSection.increaseCount(1);
         }
     }
 }
@@ -62,6 +78,8 @@ void Win32Connection::InternalReadMessageThread()
     char buffer[MAX_LINE_SIZE] = {0};
     int size = 0;
     int result = 0;
+    string localmsg;
+    set<SOCKET> localsockets;
 
     //set of socket descriptors
     fd_set readfds;
@@ -71,13 +89,18 @@ void Win32Connection::InternalReadMessageThread()
         //clear the socket set
         FD_ZERO(&readfds);
 
+        //make a local copy of the sockets so they are immune to external changes
+        userCriticalSection.wait();
+        localsockets = sockets;
+        userCriticalSection.increaseCount(1);
+
         //go through each socket and add them
-        for (i = sockets.begin(); i != sockets.end(); i++)
+        for (i = localsockets.begin(); i != localsockets.end(); i++)
         {
             sock = *i;
             FD_SET(sock, &readfds);
         }
-
+        
         //go to last socket
         i--;
         //its value would be maximum due to set being ordered
@@ -91,7 +114,7 @@ void Win32Connection::InternalReadMessageThread()
             return;
 
         //go through each socket
-        for (i = sockets.begin(); i != sockets.end(); i++)
+        for (i = localsockets.begin(); i != localsockets.end(); i++)
         {
             sock = *i;
 
@@ -102,8 +125,16 @@ void Win32Connection::InternalReadMessageThread()
                 {
                     buffer[size] = '\0';
 
+                    userCriticalSection.wait();
+                    localmsg = messages[sock];
+                    userCriticalSection.create(1);
+
                     //use telnet RFC to check for backspace, delete, newline, etc
-                    result = telnet_decode(messages[sock], buffer, strlen(buffer), sock);                    
+                    result = telnet_decode(localmsg, buffer, strlen(buffer), sock);     
+
+                    userCriticalSection.wait();
+                    messages[sock] = localmsg;
+                    userCriticalSection.create(1);
                 }
             }
         }
@@ -113,9 +144,55 @@ void Win32Connection::InternalReadMessageThread()
 //actual thread function
 void Win32Connection::InternalSendMessageThread()
 {
+    writemessage writemsg;
+    int result;
+
     while(ALWAYS_TRUE)
     {
-        ;
+        //wait until there are messages to send
+        writeMsgListEmpty.wait();
+
+        //enter critical section to get message
+        writeCriticalSection.wait();
+        writemsg = writeMsgList.front(); writeMsgList.pop();
+        writeCriticalSection.increaseCount(1);
+
+        //send the message to destination
+        SOCKET sock = user_sock[writemsg.user];
+
+        //append newline to message
+        writemsg.msg += "\n";
+
+        //if user is in lobby, means we are sending the message only to him
+        if (writemsg.room[0] == ' ')
+        {
+            result = send( sock, writemsg.msg.c_str(), writemsg.msg.length(), 0 );
+
+            if (result == SOCKET_ERROR) 
+            {
+                closesocket(sock);
+
+                //remove user from user list
+                userCriticalSection.wait();
+            
+                //clean user info
+                sock_user.erase(sock);
+                user_sock.erase(writemsg.user);
+                messages.erase(sock);
+                //decrease active user count
+                user_count--;
+                //remove user from his room (only for non-lobby users)
+                rooms[ user_room[writemsg.user] ].erase(writemsg.user);
+                //if room is empty, remove it
+                if (rooms[ user_room[writemsg.user] ].size() == 0)
+                    rooms.erase(user_room[writemsg.user]);
+                //finally, remove the user and its associated room
+                user_room.erase(writemsg.user);
+
+                userCriticalSection.increaseCount(1);
+            }
+        }
+
     }
 }
 
@@ -144,9 +221,23 @@ int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET s
             //skip next char if needed
             if (i + 1 < size && buffer[i + 1] < 32)
                 i++;
+
+            //prepare the message
+            readmessage readmsg = {0};
+            readmsg.msg = msg;
+
+            userCriticalSection.wait();
+            readmsg.user = sock_user[socket];
+            userCriticalSection.increaseCount(1);
+
             //our message is ready, send it to server
-            msgList.push(msg);
-            usrList.push(names[socket]);
+            readCriticalSection.wait();
+            readMsgList.push(readmsg);
+            readCriticalSection.increaseCount(1);
+
+            //unblock message parsing if needed
+            readMsgListEmpty.increaseCount(1);
+
             //reset message for current client
             msg = "";
         }
@@ -157,6 +248,83 @@ int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET s
 		}	
 	}
 	return CS_OK;
+}
+
+//receive next message from someone
+int Win32Connection::receiveNextMessage(string& user, string& message)
+{
+    readmessage readmsg = {0};
+
+    //wait until there are messages in the queue
+    readMsgListEmpty.wait();
+
+    //make sure we acccess the message list one at a time
+    readCriticalSection.wait();
+    if (!readMsgList.empty())
+    {
+        readmsg = readMsgList.front(); readMsgList.pop();
+    }
+    readCriticalSection.increaseCount(1);
+
+    user = readmsg.user;
+    message = readmsg.msg;
+
+    return CS_OK;
+}
+
+//send a message to all users in a room
+int Win32Connection::sendMessageToOthers(string user, string message, string room)
+{
+
+    return CS_OK;
+}
+
+//send a message back to the user from the server
+int Win32Connection::sendMessageToUser(string user, string message)
+{
+    writemessage writemsg = {0};
+    writemsg.user = user;
+    writemsg.msg = message;
+    writemsg.room = " lobby"; //normal rooms cannot contain spaces
+
+    //enter critical section to send our message
+    writeCriticalSection.wait();
+    writeMsgList.push(writemsg);
+    writeCriticalSection.increaseCount(1);
+
+    //flag the message list contains one more item
+    writeMsgListEmpty.increaseCount(1);
+
+    return CS_OK;
+}
+
+//join a non-empty room or create one if room does not exist
+//placing the user in that room
+int Win32Connection::joinRoom(string user, string room)
+{
+
+    return CS_OK;
+}
+
+//leave a room, deleting it if it now contains no users
+int Win32Connection::leaveRoom(string user, string room)
+{
+
+    return CS_OK;
+}
+
+//list non-empty rooms
+int Win32Connection::listRooms(string user)
+{
+
+    return CS_OK;
+}
+
+//whisper from user1 to user2 with the message
+int Win32Connection::whisper(string acting_user, string dest_user, string message)
+{
+
+    return CS_OK;
 }
 
 //start the server
@@ -201,6 +369,22 @@ int Win32Connection::start()
         return CS_FAIL;
     }
 
+    //initial user count
+    user_count = 0;
+
+    //create critical section for modifying users
+    userCriticalSection.create(1);
+
+    //create critical section
+    readCriticalSection.create(1);
+    //create message list
+    readMsgListEmpty.create(0);
+
+    //create critical section
+    writeCriticalSection.create(1);
+    //create message list
+    writeMsgListEmpty.create(0);
+
     //create separate thread for select()
     HANDLE hClientThread;
     DWORD dwThreadId;
@@ -241,62 +425,6 @@ int Win32Connection::start()
     }
     
     started = TRUE;
-
-    return CS_OK;
-}
-
-//receive next message from someone
-int Win32Connection::receiveNextMessage(string& user, string& message)
-{
-    UNREFERENCED_PARAMETER(user);
-    UNREFERENCED_PARAMETER(message);
-
-    //TODO 
-    //wait on semaphore until msgList non-empty
-    //then get message from msgList from user in usrList
-    //and process it
-    return CS_OK;
-}
-
-//send a message to all users in a room
-int Win32Connection::sendMessageToOthers(string user, string message, string room)
-{
-
-    return CS_OK;
-}
-
-//send a message back to the user from the server
-int Win32Connection::sendMessageToUser(string user, string message)
-{
-
-    return CS_OK;
-}
-
-//join a non-empty room or create one if room does not exist
-//placing the user in that room
-int Win32Connection::joinRoom(string user, string room)
-{
-
-    return CS_OK;
-}
-
-//leave a room, deleting it if it now contains no users
-int Win32Connection::leaveRoom(string user, string room)
-{
-
-    return CS_OK;
-}
-
-//list non-empty rooms
-int Win32Connection::listRooms(string user)
-{
-
-    return CS_OK;
-}
-
-//whisper from user1 to user2 with the message
-int Win32Connection::whisper(string acting_user, string dest_user, string message)
-{
 
     return CS_OK;
 }

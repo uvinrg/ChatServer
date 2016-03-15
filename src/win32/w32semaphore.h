@@ -24,13 +24,13 @@ public:
     }
 
     //create a semaphore with an initial and a max count
-    int Create(int initial_count, int max_count = 0);
+    int create(int initial_count, int max_count = 0);
     //increase its count by the specified amount
-    int IncreaseCount(int increase_amount);
+    int increaseCount(int increase_amount);
     //decrease the count by 1,
     //if count becomes 0, the function blocks
     //until another thread increases count by at least 1
-    int Wait();
+    int wait();
 private:
     HANDLE semaphore;
 };
