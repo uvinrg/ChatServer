@@ -9,15 +9,6 @@
 #include "w32connection.h"
 
 //dummy thread function to call the object's thread function
-DWORD WINAPI AcceptThread( LPVOID lpData )
-{
-    Win32Connection *conn = (Win32Connection*)lpData;
-    conn->InternalAcceptThread();
-
-    return CS_OK;
-}
-
-//dummy thread function to call the object's thread function
 DWORD WINAPI ReadMessageThread( LPVOID lpData )
 {
     Win32Connection *conn = (Win32Connection*)lpData;
@@ -35,39 +26,33 @@ DWORD WINAPI SendMessageThread( LPVOID lpData )
     return CS_OK;
 }
 
-//actual thread function
-void Win32Connection::InternalAcceptThread()
+//accept a connection once it is confirmed by select
+void Win32Connection::acceptConnection()
 {
     SOCKET new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
+    
+    if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) != INVALID_SOCKET)
+    {
+        //enter critical section
+        userCriticalSection.wait();
 
-    while(ALWAYS_TRUE)
-    {       
-        if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) != INVALID_SOCKET)
-        {
-            //enter critical section
-            userCriticalSection.wait();
+        //create a user for the socket with a space followed by a number (illegal for user names)
+        sock_user[new_socket] = " ";
+        sock_user[new_socket] += to_string(user_count);
+        user_sock[ sock_user[new_socket] ] = new_socket;
+        //create an empty message for the user
+        messages[new_socket] = "";
 
-            //create a user for the socket with a space followed by a number (illegal for user names)
-            sock_user[new_socket] = " ";
-            sock_user[new_socket] += to_string(user_count);
-            user_sock[ sock_user[new_socket] ] = new_socket;
-            //create an empty message for the user
-            messages[new_socket] = "";
+        //increment number of users
+        user_count++;
 
-            //increment number of users
-            user_count++;
+        //add socket to list
+        sockets.insert(new_socket);
 
-            //add socket to list
-            sockets.insert(new_socket);
-
-            //leave section
-            userCriticalSection.increaseCount(1);
-
-            //mark the number of sockets added
-            socketsListEmpty.increaseCount(1);
-        }
+        //leave section
+        userCriticalSection.increaseCount(1);
     }
 }
 
@@ -76,7 +61,7 @@ void Win32Connection::InternalReadMessageThread()
 {
     set<SOCKET>::iterator i;
     SOCKET sock;
-    int max_sd = 0;
+    unsigned int max_sd = 0;
     int activity = 0;
     char buffer[MAX_LINE_SIZE] = {0};
     int size = 0;
@@ -89,8 +74,6 @@ void Win32Connection::InternalReadMessageThread()
 
     while (ALWAYS_TRUE)
     {
-        socketsListEmpty.wait();
-
         //clear the socket set
         FD_ZERO(&readfds);
 
@@ -99,17 +82,24 @@ void Win32Connection::InternalReadMessageThread()
         localsockets = sockets;
         userCriticalSection.increaseCount(1);
 
-        //go through each socket and add them
-        for (i = localsockets.begin(); i != localsockets.end(); i++)
+        //add server socket for accept
+        FD_SET(hServerSocket, &readfds);
+        max_sd = hServerSocket;
+       
+        //if we have clients conneted
+        if (localsockets.begin() != localsockets.end())
         {
-            sock = *i;
-            FD_SET(sock, &readfds);
+            //go through each socket and add them
+            for (i = localsockets.begin(); i != localsockets.end(); i++)
+            {
+                sock = *i;
+                FD_SET(sock, &readfds);
+            }
+            //go to last socket
+            i--;
+            //its value would be maximum due to set being ordered
+            max_sd = MaxCS(*i, max_sd);
         }
-        
-        //go to last socket
-        i--;
-        //its value would be maximum due to set being ordered
-        max_sd = *i;
 
         //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
         activity = select( max_sd + 1 , &readfds , NULL , NULL , NULL);
@@ -117,6 +107,13 @@ void Win32Connection::InternalReadMessageThread()
         //error
         if ((activity < 0) && (errno != EINTR)) 
             return;
+
+        //check for accept
+        if (FD_ISSET(hServerSocket, &readfds))
+        {
+            //accept the new connection
+            acceptConnection();
+        }
 
         //go through each socket
         for (i = localsockets.begin(); i != localsockets.end(); i++)
@@ -143,9 +140,35 @@ void Win32Connection::InternalReadMessageThread()
                 }
             }
         }
-
-        socketsListEmpty.increaseCount(1);
     }
+}
+
+void Win32Connection::deleteConnection(SOCKET sock)
+{
+    //remove user from user list
+    userCriticalSection.wait();
+
+    //close the socket
+    closesocket(sock);
+
+    //get user
+    string user = sock_user[sock];
+            
+    //clean user info
+    sock_user.erase(sock);
+    user_sock.erase(user);
+    messages.erase(sock);
+    //decrease active user count
+    user_count--;
+    //remove user from his room (only for non-lobby users)
+    rooms[ user_room[user] ].erase(user);
+    //if room is empty, remove it
+    if (rooms[ user_room[user] ].size() == 0)
+        rooms.erase(user_room[user]);
+    //finally, remove the user and its associated room
+    user_room.erase(user);
+
+    userCriticalSection.increaseCount(1);
 }
 
 //actual thread function
@@ -178,30 +201,8 @@ void Win32Connection::InternalSendMessageThread()
 
             if (result == SOCKET_ERROR) 
             {
-                //decrease number of sockets by 1 in the semaphore
-                socketsListEmpty.wait();
-
-                //close the socket
-                closesocket(sock);
-
-                //remove user from user list
-                userCriticalSection.wait();
-            
-                //clean user info
-                sock_user.erase(sock);
-                user_sock.erase(writemsg.user);
-                messages.erase(sock);
-                //decrease active user count
-                user_count--;
-                //remove user from his room (only for non-lobby users)
-                rooms[ user_room[writemsg.user] ].erase(writemsg.user);
-                //if room is empty, remove it
-                if (rooms[ user_room[writemsg.user] ].size() == 0)
-                    rooms.erase(user_room[writemsg.user]);
-                //finally, remove the user and its associated room
-                user_room.erase(writemsg.user);
-
-                userCriticalSection.increaseCount(1);
+                //delete the connection
+                deleteConnection(sock);
             }
         }
 
@@ -383,19 +384,17 @@ int Win32Connection::start()
 
     //initial user count
     user_count = 0;
-    //create sockets list semaphore
-    socketsListEmpty.create(0);
 
     //create critical section for modifying users
-    userCriticalSection.create(1);
+    userCriticalSection.create(1, 1);
 
     //create critical section
-    readCriticalSection.create(1);
+    readCriticalSection.create(1, 1);
     //create message list semaphore
     readMsgListEmpty.create(0);
 
     //create critical section
-    writeCriticalSection.create(1);
+    writeCriticalSection.create(1, 1);
     //create message list semaphore
     writeMsgListEmpty.create(0);
 
@@ -403,20 +402,9 @@ int Win32Connection::start()
     HANDLE hClientThread;
     DWORD dwThreadId;
 
-    //start three threads:
-    // - one thread for accepting new connections
-    // - one thread for reading messages from clients
+    //start two threads:    
+    // - one thread for reading messages from clients and accepting new connections
     // - one thread for sending messages to clients
-
-    // Start the client thread and pass this instance to it
-    hClientThread = CreateThread( NULL, 0,
-        ( LPTHREAD_START_ROUTINE ) AcceptThread,
-        ( LPVOID ) this, 0, &dwThreadId ) ;
-    if ( hClientThread != NULL )
-    {
-        //close handle now so that thread may finish when the worker function ends
-        CloseHandle( hClientThread );
-    }
 
     // Start the client thread and pass this instance to it
     hClientThread = CreateThread( NULL, 0,

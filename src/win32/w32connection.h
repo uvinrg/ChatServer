@@ -58,8 +58,12 @@ public:
     //whisper from user1 to user2 with the message
     int whisper(string acting_user, string dest_user, string message);
 
-    //thread for accepting new connections
-    void InternalAcceptThread();
+    //accept a connection once it is confirmed by select
+    void acceptConnection();
+
+    //delete a connection
+    void deleteConnection(SOCKET sock);
+
     //thread for receiving messages
     void InternalReadMessageThread();
     //thread for sending messages
@@ -76,8 +80,6 @@ private:
 
     //the list of sockets
     set<SOCKET> sockets;
-    //sync for waiting if socket list is empty
-    W32semaphore socketsListEmpty;
 
     map<SOCKET, string> sock_user; //map to get from socket to user
     map<string, SOCKET> user_sock; //map to get from user to socket

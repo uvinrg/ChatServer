@@ -24,6 +24,10 @@
 #   define ALWAYS_TRUE ((void)0, TRUE)
 #endif
 
+#ifndef MaxCS
+#   define MaxCS(x, y) ((y) > (x) ? (y) : (x))
+#endif
+
 //make sure to issue instructions on a single row
 #define CHECK_LOG(x) if (log != NULL) x
 
