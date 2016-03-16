@@ -28,8 +28,10 @@ int Server::start_on(int port_number, FILE* logfile)
         //get next message received by the server connection
         if (conn->receiveNextMessage(user1, message) == CS_OK)
         {
-            //DO SOMETHING based on message
-            conn->sendMessageToUser(user1, "Your message: " + message);
+            //process message based on the message and user state
+            conn->processMessage(user1, message);
+            ////testing: send message back to user
+            //conn->sendMessageToUser(user1, "Your message: " + message);
         }
     }
 

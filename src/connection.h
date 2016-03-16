@@ -34,6 +34,8 @@ public:
     virtual int listRooms(string user) = 0;
     //whisper from user1 to user2 with the message
     virtual int whisper(string acting_user, string dest_user, string message) = 0;
+    //process message based on the message and user state
+    virtual void processMessage(string user, string msg) = 0;
 protected:
     int port;
 };

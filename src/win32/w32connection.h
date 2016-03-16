@@ -57,6 +57,8 @@ public:
     int listRooms(string user);
     //whisper from user1 to user2 with the message
     int whisper(string acting_user, string dest_user, string message);
+    //process message based on the message and user state
+    void processMessage(string user, string msg);
 
     //accept a connection once it is confirmed by select
     void acceptConnection();

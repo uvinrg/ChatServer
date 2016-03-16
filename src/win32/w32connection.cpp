@@ -26,6 +26,24 @@ DWORD WINAPI SendMessageThread( LPVOID lpData )
     return CS_OK;
 }
 
+void Win32Connection::processMessage(string user, string msg)
+{
+    //check for quit command
+    if (msg.compare("/quit") == 0)
+    {
+        sendMessageToUser(user, "BYE");
+        deleteConnection(user_sock[user]);
+        return;
+    }
+
+    //check if username must be given
+    if (user[0] == ' ')
+    {
+        //only alphanumerical characters allowed
+
+    }
+}
+
 //accept a connection once it is confirmed by select
 void Win32Connection::acceptConnection()
 {
@@ -53,6 +71,11 @@ void Win32Connection::acceptConnection()
 
         //leave section
         userCriticalSection.increaseCount(1);
+
+        //send Welcome message to user
+        sendMessageToUser(sock_user[new_socket], 
+            "Welcome to the XYZ chat server\r\n"
+            "Login Name?");
     }
 }
 
@@ -106,7 +129,7 @@ void Win32Connection::InternalReadMessageThread()
 
         //error
         if ((activity < 0) && (errno != EINTR)) 
-            return;
+            continue;
 
         //check for accept
         if (FD_ISSET(hServerSocket, &readfds))
@@ -148,6 +171,8 @@ void Win32Connection::deleteConnection(SOCKET sock)
     //remove user from user list
     userCriticalSection.wait();
 
+    //delete the socket from the list
+    sockets.erase(sock);
     //close the socket
     closesocket(sock);
 
