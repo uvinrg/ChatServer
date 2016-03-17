@@ -24,8 +24,7 @@ struct writemessage
 class Win32Connection : public Connection
 {
 public:
-    Win32Connection(int listen_port):
-        Connection(listen_port),
+    Win32Connection():        
         started(FALSE)
     { 
         ;
@@ -41,7 +40,9 @@ public:
     }
 
     //start the server
-    int start();
+    int start_on(int port_number);
+    //init
+    int init(int port_number);
     //receive next message from someone
     int receiveNextMessage(string& user, string& message);
     //send a message to all users in a room

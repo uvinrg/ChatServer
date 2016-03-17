@@ -26,11 +26,13 @@ DWORD WINAPI SendMessageThread( LPVOID lpData )
     return CS_OK;
 }
 
+//rename a user
 void Win32Connection::renameUser(string olduser, string newuser)
 {
-    //remove user from user list
+    //enter critical section
     userCriticalSection.wait();
 
+    //get user's socket
     SOCKET sock = user_sock[olduser];
 
     //replace username for socket
@@ -40,11 +42,13 @@ void Win32Connection::renameUser(string olduser, string newuser)
     //add new one
     user_sock[newuser] = sock;
 
-    //user cannot be in any rooms at login, so no changes needed there
+    //user cannot be in a room at login, so no changes needed there
 
+    //exit critical section
     userCriticalSection.increaseCount(1);
 }
 
+//remove user from a room
 void Win32Connection::removeFromRoom(string user)
 {
     //remove user from the room
@@ -69,10 +73,11 @@ void Win32Connection::removeFromRoom(string user)
     sendMessageToUser(user, "* user has left chat: " + user + " (** this is you)");
 }
 
+//check if the name is valid
 int Win32Connection::isValidName(string name)
 {
     BOOL valid = TRUE;
-    //only alphabet characters allowed
+    //only alphanumeric letters, _ and . are allowed
     for (int i = 0; i < (int)name.length(); i++)
     {
         //check for non-letters
@@ -88,10 +93,11 @@ int Win32Connection::isValidName(string name)
     return valid;
 }
 
+//check if the message is valid
 int Win32Connection::isValidMessage(string msg)
 {
     BOOL valid = TRUE;
-    //only alphabet characters allowed
+    //only printable characters allowed
     for (int i = 0; i < (int)msg.length(); i++)
     {
         //check for non-letters
@@ -105,6 +111,7 @@ int Win32Connection::isValidMessage(string msg)
     return valid;
 }
 
+//process message based on the message and user state
 void Win32Connection::processMessage(string user, string msg)
 {
     //check for quit command
@@ -113,8 +120,10 @@ void Win32Connection::processMessage(string user, string msg)
         //check if user is in a room
         if (user_room.find(user) != user_room.end())
         {
+            //if true, remove him from it
             removeFromRoom(user);
         }
+        //remove user
         sendMessageToUser(user, "BYE");
         deleteConnection(user_sock[user]);
         return;
@@ -123,9 +132,11 @@ void Win32Connection::processMessage(string user, string msg)
     //check if username must be given
     if (user[0] == ' ' && msg[0] != '/')
     {
+        //check if the user name is valid
         if (isValidName(msg))
         {
             string newuser = msg;
+            //make all letters lowercase
             transform(newuser.begin(), newuser.end(), newuser.begin(), tolower);
 
             //check if username exists
@@ -136,6 +147,7 @@ void Win32Connection::processMessage(string user, string msg)
             }
             else
             {
+                //change the user name to his new one
                 renameUser(user, newuser);
                 sendMessageToUser(newuser, 
                     "Welcome " + newuser + "!");
@@ -143,6 +155,7 @@ void Win32Connection::processMessage(string user, string msg)
         }
         else
         {
+            //error
             sendMessageToUser(user, "Invalid name. Use only alphanumeric letters, _ and . please!\r\nLogin Name?");
         }
 
@@ -163,13 +176,16 @@ void Win32Connection::processMessage(string user, string msg)
         int usercnt;
         string message = "Active rooms are:\r\n";
         map<string, set<string> >::iterator it;
+        //go through each room in the list
         for (it = rooms.begin(); it != rooms.end(); it++)
         {
+            //get its user count
             usercnt = it->second.size();
+            //write the room's description in the message
             message += "* " + it->first + " (" + to_string(usercnt) + ")\r\n";
         }
-
         message += "end of list.";
+        //send the message to the user
         sendMessageToUser(user, message);
         return;
     }
@@ -178,6 +194,7 @@ void Win32Connection::processMessage(string user, string msg)
     if (msg.substr(0, 6).compare("/join ") == 0)
     {
         string room_name = msg.substr(6);
+        //check if the room name is valid
         if (isValidName(room_name))
         {
             //make room lowercase
@@ -200,24 +217,28 @@ void Win32Connection::processMessage(string user, string msg)
 
             //list users in the room
             set<string>::iterator it;
+            //for each user in the new room
             for (it = rooms[room_name].begin(); it != rooms[room_name].end(); it++)
             {
+                //list the user
                 if ((*it).compare(user) != 0)
                 {
                     message += "* " + (*it) + "\r\n";
                 }
+                //special case when the user is himself
                 else
                 {
                     message += "* " + (*it)  + " (** this is you)\r\n";
                 }
             }
-
+            //end of message
             message += "end of list.";
-
+            //send it to user
             sendMessageToUser(user, message);
         }
         else
         {
+            //error
             sendMessageToUser(user, "Invalid room name. Use only alphanumeric letters, _ and . please!");
         }
 
@@ -230,10 +251,12 @@ void Win32Connection::processMessage(string user, string msg)
         //check if user is in a room
         if (user_room.find(user) != user_room.end())
         {
+            //remove him from the room
             removeFromRoom(user);
         }
         else
         {
+            //error
             sendMessageToUser(user, "In lobby already. Use /quit for exiting.");            
         }
 
@@ -284,6 +307,7 @@ void Win32Connection::processMessage(string user, string msg)
     //other "/" command
     if (msg[0] == '/')
     {
+        //no other '/' commands permitted
         sendMessageToUser(user, "Invalid command.");
         return;
     }
@@ -311,6 +335,7 @@ void Win32Connection::acceptConnection()
     struct sockaddr_in address;
     int addrlen = sizeof(address);
     
+    //blocking until a new user connects to the server
     if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) != INVALID_SOCKET)
     {        
         //enter critical section
@@ -319,19 +344,22 @@ void Win32Connection::acceptConnection()
         //check max user count
         if (user_count == MAX_CLIENTS)
         {
+            //close new sockets once max user count has been reached
             closesocket(new_socket);
 
-            //leave section
+            //leave critical section
             userCriticalSection.increaseCount(1);
 
             return;
         }
 
-        //create a user for the socket with a space followed by a number (illegal for user names)
+        //create a user for the socket with a space followed by a number 
+        //such a name is illegal for user names and can help differentiate
+        //users which have not yet chosen a user name
         sock_user[new_socket] = " ";
         sock_user[new_socket] += to_string(user_count);
         user_sock[ sock_user[new_socket] ] = new_socket;
-        //create an empty message for the user
+        //create an empty partial message for the user
         messages[new_socket] = "";
 
         //increment number of users
@@ -357,7 +385,7 @@ void Win32Connection::acceptConnection()
     }
 }
 
-//actual thread function
+//actual thread function for reading messages from clients and accepting connections
 void Win32Connection::InternalReadMessageThread()
 {
     set<SOCKET>::iterator i;
@@ -387,7 +415,7 @@ void Win32Connection::InternalReadMessageThread()
         FD_SET(hServerSocket, &readfds);
         max_sd = hServerSocket;
        
-        //if we have clients conneted
+        //if we have clients connected
         if (localsockets.begin() != localsockets.end())
         {
             //go through each socket and add them
@@ -402,6 +430,7 @@ void Win32Connection::InternalReadMessageThread()
             max_sd = MaxCS(*i, max_sd);
         }
 
+        //blocking function
         //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
         activity = select( max_sd + 1 , &readfds , NULL , NULL , NULL);
 
@@ -424,29 +453,40 @@ void Win32Connection::InternalReadMessageThread()
             //read message, if we have one
             if (FD_ISSET(sock, &readfds))
             {
+                //read as many bytes as we can
                 if ((size = recv(sock, buffer, sizeof(buffer), 0)) > 0)
                 {
+                    //add terminating character to string
                     buffer[size] = '\0';
 
+                    //get the partial message
                     userCriticalSection.wait();
                     localmsg = messages[sock];
                     userCriticalSection.increaseCount(1);
 
                     //use telnet RFC to check for backspace, delete, newline, etc
+                    //the new part of the message into the old message
                     result = telnet_decode(localmsg, buffer, strlen(buffer), sock);     
 
+                    //store the new partial message back
                     userCriticalSection.wait();
                     messages[sock] = localmsg;
                     userCriticalSection.increaseCount(1);
                 }
                 else
                 {
+                    //if select() gave no error
+                    //but we received 0 bytes or we get an error
+                    //means the connection closed, so we remove the user
+                    //from the server
                     string user = sock_user[sock];
                     //check if user is in a room
                     if (user_room.find(user) != user_room.end())
                     {
+                        //remove him from the room
                         removeFromRoom(user);
                     }
+                    //delete user connection
                     deleteConnection(sock);
                 }
             }
@@ -456,12 +496,10 @@ void Win32Connection::InternalReadMessageThread()
 
 void Win32Connection::deleteConnection(SOCKET sock)
 {
-    string user = "!NONE!";
-
-    //remove user from user list
+    //critical section
     userCriticalSection.wait();
 
-    //check if the user hasn't been already closed/deleted
+    //check if the user hasn't been already closed/deleted by another thread
     if (sockets.find(sock) != sockets.end())
     {
         //delete the socket from the list
@@ -470,7 +508,7 @@ void Win32Connection::deleteConnection(SOCKET sock)
         closesocket(sock);
 
         //get user
-        user = sock_user[sock];
+        string user = sock_user[sock];
             
         //clean user info
         sock_user.erase(sock);
@@ -478,13 +516,16 @@ void Win32Connection::deleteConnection(SOCKET sock)
         messages.erase(sock);
         //decrease active user count
         user_count--;
-        //remove user from his room (only for non-lobby users)
-        rooms[ user_room[user] ].erase(user);
-        //if room is empty, remove it
-        if (rooms[ user_room[user] ].size() == 0)
-            rooms.erase(user_room[user]);
-        //finally, remove the user and its associated room
-        user_room.erase(user);
+        if (user_room.find(user) != user_room.end())
+        {
+            //remove user from his room (only for non-lobby users)
+            rooms[ user_room[user] ].erase(user);
+            //if room is empty, remove it
+            if (rooms[ user_room[user] ].size() == 0)
+                rooms.erase(user_room[user]);
+            //finally, remove the user and its associated room
+            user_room.erase(user);
+        }
     }
 
     userCriticalSection.increaseCount(1);
@@ -516,8 +557,10 @@ void Win32Connection::InternalSendMessageThread()
         //if user is in lobby, means we are sending the message only to him
         if (writemsg.room[0] == ' ')
         {
+            //send the message to the user
             result = send( sock, writemsg.msg.c_str(), writemsg.msg.length(), 0 );
 
+            //if error, close the connection
             if (result == SOCKET_ERROR) 
             {
                 //delete the connection
@@ -534,10 +577,10 @@ int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET s
 	//parse the received buffer 
 	for(int i = 0; i < size; i++)
 	{
-        //if first character is non-printable, skip entire sequence
+        //if first character is non-printable and not new-line, skip entire sequence
         if (i == 0 && (buffer[i] < 32 || buffer[i] > 126) && buffer[i] != 13 && buffer[i] != 10 )
             return CS_INVALID_ARGS;
-		//if delete or ctr + backspace ascii code remove next character
+		//if delete or backspace ascii code remove next character
 		if( buffer[i] == 127 ||  buffer[i] == 224)
 		{            
 			continue;
@@ -554,15 +597,16 @@ int Win32Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET s
             if (i + 1 < size && buffer[i + 1] < 32)
                 i++;
 
-            //prepare the message
+            //prepare the message for processing
             readmessage readmsg;
             readmsg.msg = msg;
 
+            //get user who sent it
             userCriticalSection.wait();
             readmsg.user = sock_user[socket];
             userCriticalSection.increaseCount(1);
 
-            //our message is ready, send it to server
+            //our message is ready, send it to the processing thread
             readCriticalSection.wait();
             readMsgList.push(readmsg);
             readCriticalSection.increaseCount(1);
@@ -590,14 +634,16 @@ int Win32Connection::receiveNextMessage(string& user, string& message)
     //wait until there are messages in the queue
     readMsgListEmpty.wait();
 
-    //make sure we acccess the message list one at a time
+    //make sure we acccess the message list one thread at a time
     readCriticalSection.wait();
     if (!readMsgList.empty())
     {
+        //read the message structure
         readmsg = readMsgList.front(); readMsgList.pop();
     }
     readCriticalSection.increaseCount(1);
 
+    //get user and message
     user = readmsg.user;
     message = readmsg.msg;
 
@@ -613,8 +659,10 @@ int Win32Connection::sendMessageToOthers(string message, string room)
     
     //send the same message to every user in a room
     set<string>::iterator it;
+    //go through each user in the room
     for (it = rooms[room].begin(); it != rooms[room].end(); it++)
     {
+        //send the message
         sendMessageToUser(*it, message);
     }
 
@@ -670,7 +718,7 @@ int Win32Connection::whisper(string acting_user, string dest_user, string messag
 }
 
 //start the server
-int Win32Connection::start()
+int Win32Connection::init(int port_number)
 {
     //start winsock2
     WSADATA wsaData;
@@ -690,8 +738,8 @@ int Win32Connection::start()
     // Create the structure for binding the socket to the listening port
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;     
-    serverAddr.sin_addr.s_addr = inet_addr( "127.0.0.1" ) ; //INADDR_ANY;
-    serverAddr.sin_port = htons((USHORT)port);
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY); //inet_addr( "127.0.0.1" );
+    serverAddr.sin_port = htons((USHORT)port_number);
 
     // Bind the Server socket to the address & port
     if ( bind( hServerSocket, ( struct sockaddr * ) &serverAddr, sizeof( serverAddr ) ) == SOCKET_ERROR )
@@ -727,7 +775,7 @@ int Win32Connection::start()
     //create message list semaphore
     writeMsgListEmpty.create(0);
 
-    //create separate thread for select()
+    //create threads
     HANDLE hClientThread;
     DWORD dwThreadId;
 
@@ -755,9 +803,34 @@ int Win32Connection::start()
         CloseHandle( hClientThread );
     }
     
+    //mark server as started
     started = TRUE;
 
     return CS_OK;
 }
+
+int Win32Connection::start_on(int port_number)
+{
+    string user, message;    
+
+    //try to start the server
+    if (init(port_number) != CS_OK)
+        return CS_FAIL;
+
+    //message loop
+    while(ALWAYS_TRUE)
+    {
+        //get next message received by the server connection
+        if (receiveNextMessage(user, message) == CS_OK)
+        {
+            //process message based on the message and user state
+            processMessage(user, message);
+        }
+    }
+
+    return CS_OK;
+}
+
+
 
 

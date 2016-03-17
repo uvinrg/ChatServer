@@ -11,14 +11,10 @@
 class Connection
 {
 public:
-    Connection(int listen_port):
-        port(listen_port) 
-    { 
-        ;
-    }
-
     //start the server
-    virtual int start() = 0;
+    virtual int start_on(int port_number) = 0;
+    //init
+    virtual int init(int port_number) = 0;
     //receive next message from someone
     virtual int receiveNextMessage(string& user, string& message) = 0;
     //send a message to all users in a room
@@ -36,8 +32,7 @@ public:
     virtual int whisper(string acting_user, string dest_user, string message) = 0;
     //process message based on the message and user state
     virtual void processMessage(string user, string msg) = 0;
-protected:
-    int port;
+
 };
 
 #endif //__CHATSERVER_CONNECTION_H__

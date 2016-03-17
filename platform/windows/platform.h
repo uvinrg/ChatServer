@@ -26,13 +26,12 @@
 
 using namespace std;
 
-//our FD_SET structure must accomodate all clients plus the server list socket
+//our FD_SET structure must accomodate all clients plus the server listen socket
 #define FD_SETSIZE      (MAX_CLIENTS + 1)
 #include <winsock2.h>
 
 #include "../../src/defs.h"
 #include "../../src/connection.h"
-#include "../../src/server.h"
 #include "../../src/win32/w32semaphore.h"
 #include "../../src/win32/w32connection.h"
 
