@@ -26,7 +26,8 @@
 
 using namespace std;
 
-#define FD_SETSIZE      MAX_CLIENTS
+//our FD_SET structure must accomodate all clients plus the server list socket
+#define FD_SETSIZE      (MAX_CLIENTS + 1)
 #include <winsock2.h>
 
 #include "../../src/defs.h"

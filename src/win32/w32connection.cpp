@@ -240,6 +240,47 @@ void Win32Connection::processMessage(string user, string msg)
         return;
     }
 
+    //whisper
+    if (msg.substr(0, 9).compare("/whisper ") == 0)
+    {
+        //get user name and message
+        string user_name = msg.substr(9);
+        //find start of message
+        int poz = user_name.find(" ");        
+        //extract message
+        string message = poz > 0 ? user_name.substr(poz + 1) : "";
+        //extract user name
+        user_name = user_name.substr(0, poz);
+
+        //check for valid user name
+        if (isValidName(user_name) && message.compare("") != 0)
+        {
+            //make name lowercase
+            transform(user_name.begin(), user_name.end(), user_name.begin(), tolower);
+
+            //try to find name
+            if (user_sock.find(user_name) == user_sock.end())
+            {
+                sendMessageToUser(user, "No such user.");
+                return;
+            }
+
+            //check for valid message
+            if (!isValidMessage(message))
+            {
+                sendMessageToUser(user, "Invalid message.");
+                return;
+            }
+
+            //if all checks are ok, send the whisper
+            sendMessageToUser(user_name, "Whisper from " + user + ": " + message);
+        }
+        else
+            sendMessageToUser(user, "Invalid format.");
+
+        return;
+    }
+
     //other "/" command
     if (msg[0] == '/')
     {
@@ -255,6 +296,11 @@ void Win32Connection::processMessage(string user, string msg)
             sendMessageToOthers(user + ": " + msg, user_room[user]);
         else
             sendMessageToUser(user, "Must join a room to chat. Try /rooms and /join room_name");
+        return;
+    }
+    else
+    {
+        sendMessageToUser(user, "Invalid message.\r\n");
     }
 }
 
@@ -266,9 +312,20 @@ void Win32Connection::acceptConnection()
     int addrlen = sizeof(address);
     
     if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) != INVALID_SOCKET)
-    {
+    {        
         //enter critical section
         userCriticalSection.wait();
+
+        //check max user count
+        if (user_count == MAX_CLIENTS)
+        {
+            closesocket(new_socket);
+
+            //leave section
+            userCriticalSection.increaseCount(1);
+
+            return;
+        }
 
         //create a user for the socket with a space followed by a number (illegal for user names)
         sock_user[new_socket] = " ";
@@ -289,6 +346,13 @@ void Win32Connection::acceptConnection()
         //send Welcome message to user
         sendMessageToUser(sock_user[new_socket], 
             "Welcome to the XYZ chat server\r\n"
+            "Accepted commands are:\r\n"
+            "/rooms\r\n"
+            "/join room_name\r\n"
+            "/whisper user_name message\r\n"
+            "/leave\r\n"
+            "/quit\r\n"
+            "end of list.\r\n"
             "Login Name?");
     }
 }
