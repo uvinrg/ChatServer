@@ -22,6 +22,7 @@
 #include <map>
 #include <set>
 #include <queue>
+#include <algorithm>
 
 using namespace std;
 

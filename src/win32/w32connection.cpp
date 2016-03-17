@@ -26,21 +26,235 @@ DWORD WINAPI SendMessageThread( LPVOID lpData )
     return CS_OK;
 }
 
+void Win32Connection::renameUser(string olduser, string newuser)
+{
+    //remove user from user list
+    userCriticalSection.wait();
+
+    SOCKET sock = user_sock[olduser];
+
+    //replace username for socket
+    sock_user[sock] = newuser;
+    //delete old username entry
+    user_sock.erase(olduser);
+    //add new one
+    user_sock[newuser] = sock;
+
+    //user cannot be in any rooms at login, so no changes needed there
+
+    userCriticalSection.increaseCount(1);
+}
+
+void Win32Connection::removeFromRoom(string user)
+{
+    //remove user from the room
+    userCriticalSection.wait();
+
+    //get room name
+    string room = user_room[user];
+    //delete the room entry
+    user_room.erase(user);
+    //delete user from the room
+    rooms[room].erase(user);
+    //delete room if empty
+    if (rooms[room].size() == 0)
+        rooms.erase(room);
+
+    userCriticalSection.increaseCount(1);
+
+    //inform all persons in the room that the user has left
+    sendMessageToOthers("* user has left chat: " + user, room);
+
+    //inform the user he has left the room
+    sendMessageToUser(user, "* user has left chat: " + user + " (** this is you)");
+}
+
+int Win32Connection::isValidName(string name)
+{
+    BOOL valid = TRUE;
+    //only alphabet characters allowed
+    for (int i = 0; i < (int)name.length(); i++)
+    {
+        //check for non-letters
+        if ((name[i] < 65 || (name[i] > 90 && name[i] < 97) || name[i] > 122) 
+            && name[i] != 46 
+            && name[i] != 95)
+        {            
+            valid = FALSE;
+            break;
+        }
+    }
+
+    return valid;
+}
+
+int Win32Connection::isValidMessage(string msg)
+{
+    BOOL valid = TRUE;
+    //only alphabet characters allowed
+    for (int i = 0; i < (int)msg.length(); i++)
+    {
+        //check for non-letters
+        if (msg[i] < 32 || msg[i] > 126)
+        {            
+            valid = FALSE;
+            break;
+        }
+    }
+
+    return valid;
+}
+
 void Win32Connection::processMessage(string user, string msg)
 {
     //check for quit command
     if (msg.compare("/quit") == 0)
     {
+        //check if user is in a room
+        if (user_room.find(user) != user_room.end())
+        {
+            removeFromRoom(user);
+        }
         sendMessageToUser(user, "BYE");
         deleteConnection(user_sock[user]);
         return;
     }
 
     //check if username must be given
+    if (user[0] == ' ' && msg[0] != '/')
+    {
+        if (isValidName(msg))
+        {
+            string newuser = msg;
+            transform(newuser.begin(), newuser.end(), newuser.begin(), tolower);
+
+            //check if username exists
+            if (user_sock.find(newuser) != user_sock.end())
+            {
+                sendMessageToUser(user, 
+                    "Sorry, name taken.\r\nLogin Name?");
+            }
+            else
+            {
+                renameUser(user, newuser);
+                sendMessageToUser(newuser, 
+                    "Welcome " + newuser + "!");
+            }
+        }
+        else
+        {
+            sendMessageToUser(user, "Invalid name. Use only letters, _ and . please!\r\nLogin Name?");
+        }
+
+        return;
+    }
+
+    //warn if giving commands before setting a username
     if (user[0] == ' ')
     {
-        //only alphanumerical characters allowed
+        sendMessageToUser(user, 
+                    "Must register before issuing commands or must /quit\r\nLogin Name?");
+        return;
+    }
 
+    //rooms
+    if (msg.compare("/rooms") == 0)
+    {
+        int usercnt;
+        string message = "Active rooms are:\r\n";
+        map<string, set<string> >::iterator it;
+        for (it = rooms.begin(); it != rooms.end(); it++)
+        {
+            usercnt = it->second.size();
+            message += "* " + it->first + " (" + to_string(usercnt) + ")\r\n";
+        }
+
+        message += "end of list.";
+        sendMessageToUser(user, message);
+        return;
+    }
+    
+    //join
+    if (msg.substr(0, 6).compare("/join ") == 0)
+    {
+        string room_name = msg.substr(6);
+        if (isValidName(room_name))
+        {
+            //make room lowercase
+            transform(room_name.begin(), room_name.end(), room_name.begin(), tolower);
+
+            //remove user from other rooms if he's there
+            if (user_room.find(user) != user_room.end())
+            {
+                removeFromRoom(user);
+            }
+
+            //inform people about the new user
+            sendMessageToOthers("* new user joined chat: " + user, room_name);
+
+            string message = "entering room: " + room_name + "\r\n";
+
+            //add user to room
+            user_room[user] = room_name;
+            rooms[room_name].insert(user);
+
+            //list users in the room
+            set<string>::iterator it;
+            for (it = rooms[room_name].begin(); it != rooms[room_name].end(); it++)
+            {
+                if ((*it).compare(user) != 0)
+                {
+                    message += "* " + (*it) + "\r\n";
+                }
+                else
+                {
+                    message += "* " + (*it)  + " (** this is you)\r\n";
+                }
+            }
+
+            message += "end of list.";
+
+            sendMessageToUser(user, message);
+        }
+        else
+        {
+            sendMessageToUser(user, "Invalid room name. Use only letters, _ and . please!");
+        }
+
+        return;
+    }
+
+    //leave
+    if (msg.compare("/leave") == 0)
+    {
+        //check if user is in a room
+        if (user_room.find(user) != user_room.end())
+        {
+            removeFromRoom(user);
+        }
+        else
+        {
+            sendMessageToUser(user, "In lobby already. Use /quit for exiting.");            
+        }
+
+        return;
+    }
+
+    //other "/" command
+    if (msg[0] == '/')
+    {
+        sendMessageToUser(user, "Invalid command.");
+        return;
+    }
+
+    //simple message given in the current room
+    if (isValidMessage(msg))
+    {
+        //if room exists, send a message
+        if (user_room.find(user) != user_room.end())
+            sendMessageToOthers(user + ": " + msg, user_room[user]);
+        else
+            sendMessageToUser(user, "Must join a room to chat. Try /rooms and /join room_name");
     }
 }
 
@@ -311,8 +525,18 @@ int Win32Connection::receiveNextMessage(string& user, string& message)
 }
 
 //send a message to all users in a room
-int Win32Connection::sendMessageToOthers(string user, string message, string room)
+int Win32Connection::sendMessageToOthers(string message, string room)
 {
+    //if the room does not exist, no message to send
+    if (rooms.find(room) == rooms.end())
+        return CS_FAIL;
+    
+    //send the same message to every user in a room
+    set<string>::iterator it;
+    for (it = rooms[room].begin(); it != rooms[room].end(); it++)
+    {
+        sendMessageToUser(*it, message);
+    }
 
     return CS_OK;
 }

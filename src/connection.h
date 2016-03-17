@@ -22,7 +22,7 @@ public:
     //receive next message from someone
     virtual int receiveNextMessage(string& user, string& message) = 0;
     //send a message to all users in a room
-    virtual int sendMessageToOthers(string user, string message, string room) = 0;
+    virtual int sendMessageToOthers(string message, string room) = 0;
     //send a message back to the user from the server
     virtual int sendMessageToUser(string user, string message) = 0;
     //join a non-empty room or create one if room does not exist

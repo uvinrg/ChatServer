@@ -45,7 +45,7 @@ public:
     //receive next message from someone
     int receiveNextMessage(string& user, string& message);
     //send a message to all users in a room
-    int sendMessageToOthers(string user, string message, string room);
+    int sendMessageToOthers(string message, string room);
     //send a message back to the user from the server
     int sendMessageToUser(string user, string message);
     //join a non-empty room or create one if room does not exist
@@ -63,8 +63,19 @@ public:
     //accept a connection once it is confirmed by select
     void acceptConnection();
 
+    //rename a user after login
+    void renameUser(string olduser, string newuser);
+
     //delete a connection
     void deleteConnection(SOCKET sock);
+
+    //removes user from a room
+    void removeFromRoom(string user);
+
+    //check name is formed only from letters, _ and .
+    int isValidName(string name);
+    //check message is formed only from printable characters
+    int isValidMessage(string name);
 
     //thread for receiving messages
     void InternalReadMessageThread();
