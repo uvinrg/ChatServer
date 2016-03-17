@@ -30,8 +30,6 @@ int Server::start_on(int port_number, FILE* logfile)
         {
             //process message based on the message and user state
             conn->processMessage(user1, message);
-            ////testing: send message back to user
-            //conn->sendMessageToUser(user1, "Your message: " + message);
         }
     }
 

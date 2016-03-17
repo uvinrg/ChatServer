@@ -76,7 +76,7 @@ int Win32Connection::isValidName(string name)
     for (int i = 0; i < (int)name.length(); i++)
     {
         //check for non-letters
-        if ((name[i] < 65 || (name[i] > 90 && name[i] < 97) || name[i] > 122) 
+        if ((name[i] < 48 || (name[i] > 57 && name[i] < 65)  || (name[i] > 90 && name[i] < 97) || name[i] > 122) 
             && name[i] != 46 
             && name[i] != 95)
         {            
@@ -143,7 +143,7 @@ void Win32Connection::processMessage(string user, string msg)
         }
         else
         {
-            sendMessageToUser(user, "Invalid name. Use only letters, _ and . please!\r\nLogin Name?");
+            sendMessageToUser(user, "Invalid name. Use only alphanumeric letters, _ and . please!\r\nLogin Name?");
         }
 
         return;
@@ -218,7 +218,7 @@ void Win32Connection::processMessage(string user, string msg)
         }
         else
         {
-            sendMessageToUser(user, "Invalid room name. Use only letters, _ and . please!");
+            sendMessageToUser(user, "Invalid room name. Use only alphanumeric letters, _ and . please!");
         }
 
         return;
@@ -375,6 +375,16 @@ void Win32Connection::InternalReadMessageThread()
                     messages[sock] = localmsg;
                     userCriticalSection.increaseCount(1);
                 }
+                else
+                {
+                    string user = sock_user[sock];
+                    //check if user is in a room
+                    if (user_room.find(user) != user_room.end())
+                    {
+                        removeFromRoom(user);
+                    }
+                    deleteConnection(sock);
+                }
             }
         }
     }
@@ -382,30 +392,36 @@ void Win32Connection::InternalReadMessageThread()
 
 void Win32Connection::deleteConnection(SOCKET sock)
 {
+    string user = "!NONE!";
+
     //remove user from user list
     userCriticalSection.wait();
 
-    //delete the socket from the list
-    sockets.erase(sock);
-    //close the socket
-    closesocket(sock);
+    //check if the user hasn't been already closed/deleted
+    if (sockets.find(sock) != sockets.end())
+    {
+        //delete the socket from the list
+        sockets.erase(sock);
+        //close the socket
+        closesocket(sock);
 
-    //get user
-    string user = sock_user[sock];
+        //get user
+        user = sock_user[sock];
             
-    //clean user info
-    sock_user.erase(sock);
-    user_sock.erase(user);
-    messages.erase(sock);
-    //decrease active user count
-    user_count--;
-    //remove user from his room (only for non-lobby users)
-    rooms[ user_room[user] ].erase(user);
-    //if room is empty, remove it
-    if (rooms[ user_room[user] ].size() == 0)
-        rooms.erase(user_room[user]);
-    //finally, remove the user and its associated room
-    user_room.erase(user);
+        //clean user info
+        sock_user.erase(sock);
+        user_sock.erase(user);
+        messages.erase(sock);
+        //decrease active user count
+        user_count--;
+        //remove user from his room (only for non-lobby users)
+        rooms[ user_room[user] ].erase(user);
+        //if room is empty, remove it
+        if (rooms[ user_room[user] ].size() == 0)
+            rooms.erase(user_room[user]);
+        //finally, remove the user and its associated room
+        user_room.erase(user);
+    }
 
     userCriticalSection.increaseCount(1);
 }
