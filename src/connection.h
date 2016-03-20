@@ -8,31 +8,121 @@
 #ifndef __CHATSERVER_CONNECTION_H__
 #define __CHATSERVER_CONNECTION_H__
 
+struct readmessage
+{
+    string user;
+    string msg;
+};
+
+struct writemessage
+{
+    string user;
+    string msg;
+    string room;
+};
+
 class Connection
 {
 public:
+    Connection():        
+        started(FALSE)
+    { 
+        ;
+    }
+
+    ~Connection()
+    {
+        if (started)
+        {
+            started = FALSE;
+            WSACleanup();
+        }
+    }
+
     //start the server
-    virtual int start_on(int port_number) = 0;
+    int start_on(int port_number);
     //init
-    virtual int init(int port_number) = 0;
+    int init(int port_number);
     //receive next message from someone
-    virtual int receiveNextMessage(string& user, string& message) = 0;
+    int receiveNextMessage(string& user, string& message);
     //send a message to all users in a room
-    virtual int sendMessageToOthers(string message, string room) = 0;
+    int sendMessageToOthers(string message, string room);
     //send a message back to the user from the server
-    virtual int sendMessageToUser(string user, string message) = 0;
+    int sendMessageToUser(string user, string message);
     //join a non-empty room or create one if room does not exist
     //placing the user in that room
-    virtual int joinRoom(string user, string room) = 0;    
+    int joinRoom(string user, string room);    
     //leave a room, deleting it if it now contains no users
-    virtual int leaveRoom(string user, string room) = 0;
+    int leaveRoom(string user, string room);
     //list non-empty rooms
-    virtual int listRooms(string user) = 0;
+    int listRooms(string user);
     //whisper from user1 to user2 with the message
-    virtual int whisper(string acting_user, string dest_user, string message) = 0;
+    int whisper(string acting_user, string dest_user, string message);
     //process message based on the message and user state
-    virtual void processMessage(string user, string msg) = 0;
+    void processMessage(string user, string msg);
 
+    //accept a connection once it is confirmed by select
+    void acceptConnection();
+
+    //rename a user after login
+    void renameUser(string olduser, string newuser);
+
+    //delete a connection
+    void deleteConnection(SOCKET sock);
+
+    //removes user from a room
+    void removeFromRoom(string user);
+
+    //check name is formed only from letters, _ and .
+    int isValidName(string name);
+    //check message is formed only from printable characters
+    int isValidMessage(string name);
+
+    //thread for receiving messages
+    void InternalReadMessageThread();
+    //thread for sending messages
+    void InternalSendMessageThread();
+
+    int telnet_decode(string &msg, char* buffer, int size, SOCKET socket);
+
+private:
+    //server started indicator
+    int started;
+
+    //the server socket
+    SOCKET hServerSocket;
+
+    //the list of sockets
+    set<SOCKET> sockets;
+
+    map<SOCKET, string> sock_user; //map to get from socket to user
+    map<string, SOCKET> user_sock; //map to get from user to socket
+    map<string, string> user_room; //map to get from user to its room
+    map<SOCKET, string> messages; //partially received messages from the users	
+
+    //critical section for modifying users
+    Critsection userCriticalSection;
+
+    //sync for read messages
+    Critsection readCriticalSection;    
+    //sync for waiting if message list to be read is empty
+    Semaphore readMsgListEmpty;
+    //message list to be read
+    queue<readmessage> readMsgList;
+
+    //sync for write messages
+    Critsection writeCriticalSection;    
+    //sync for waiting if message list to be written is empty
+    Semaphore writeMsgListEmpty;
+    //message list to be written
+    queue<writemessage> writeMsgList;
+
+    //the list of users in each room
+    map<string, set<string> > rooms;
+
+    //current number of users on the server
+    int user_count;
 };
 
 #endif //__CHATSERVER_CONNECTION_H__
+

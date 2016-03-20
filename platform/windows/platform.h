@@ -31,10 +31,8 @@ using namespace std;
 #include <winsock2.h>
 
 #include "../../src/defs.h"
-#include "../../src/connection.h"
 #include "../../src/win32/w32semaphore.h"
-#include "../../src/win32/w32connection.h"
-
-#define PLATFORM_CONNECTION Win32Connection
+#include "../../src/critsection.h"
+#include "../../src/connection.h"
 
 #endif //__CHATSERVER_PLATFORM_H__

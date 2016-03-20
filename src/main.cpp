@@ -7,6 +7,8 @@
 
 #include "platform.h"
 
+//check if string given is a number
+//and if true, return the number as "out" variable
 int check_if_number(char* str, int& out)
 {
     out = DEFAULT_PORT_NUMBER;
@@ -34,6 +36,7 @@ int check_if_number(char* str, int& out)
         return CS_INVALID_ARGS;
 }
 
+//check arguments and read port number if given
 int parse_arguments(int argc, char* argv[], int& port_number)
 {
     int i;
@@ -64,8 +67,10 @@ int parse_arguments(int argc, char* argv[], int& port_number)
     return CS_OK;
 }
 
+//program entry point
 int main(int argc, char* argv[])
 {    
+    //default port number is 9399
     int port_number = DEFAULT_PORT_NUMBER;
 
     //parse arguments
@@ -73,18 +78,15 @@ int main(int argc, char* argv[])
         return CS_INVALID_ARGS;
 
     //our server
-    Connection* chatserver = new PLATFORM_CONNECTION();
+    Connection chatserver;
 
     //start it
     printf("Starting on %d port number\n", port_number);
-    if (chatserver->start_on(port_number) != 0)
+    if (chatserver.start_on(port_number) != 0)
     {        
         printf("Failed to start!\n");
         return CS_FAIL;
-    }   
-
-    //cleanup
-    delete chatserver;
+    }         
 
     return CS_OK;
 }

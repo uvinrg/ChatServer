@@ -9,14 +9,13 @@
 #include "w32semaphore.h"
 
 //create a semaphore with an initial and a max count
-int W32semaphore::create(int initial_count, int max_count)
+int Semaphore::create(int initial_count)
 {
     //check for existing semaphore
     if (semaphore != NULL)
         CloseHandle(semaphore);
-
-    if (max_count == 0)
-        max_count = ((UINT32)1 << 31) - 1;
+    
+    int max_count = ((UINT32)1 << 31) - 1;
 
     semaphore = CreateSemaphore( 
         NULL,           // default security attributes
@@ -33,7 +32,7 @@ int W32semaphore::create(int initial_count, int max_count)
 }
 
 //increase its count by the specified amount
-int W32semaphore::increaseCount(int increase_amount)
+int Semaphore::increaseCount(int increase_amount)
 {
     if (ReleaseSemaphore( 
             semaphore,        // handle to semaphore
@@ -50,7 +49,7 @@ int W32semaphore::increaseCount(int increase_amount)
 //decrease the count by 1,
 //if count becomes 0, the function blocks
 //until another thread increases count by at least 1
-int W32semaphore::wait()
+int Semaphore::wait()
 {
     WaitForSingleObject( semaphore, INFINITE );
 
