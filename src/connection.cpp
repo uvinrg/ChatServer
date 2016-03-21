@@ -8,24 +8,6 @@
 #include "platform.h"
 #include "connection.h"
 
-//dummy thread function to call the object's thread function
-DWORD WINAPI ReadMessageThread( LPVOID lpData )
-{
-    Connection *conn = (Connection*)lpData;
-    conn->InternalReadMessageThread();
-
-    return CS_OK;
-}
-
-//dummy thread function to call the object's thread function
-DWORD WINAPI SendMessageThread( LPVOID lpData )
-{
-    Connection *conn = (Connection*)lpData;
-    conn->InternalSendMessageThread();
-
-    return CS_OK;
-}
-
 //rename a user
 void Connection::renameUser(string olduser, string newuser)
 {
@@ -332,11 +314,9 @@ void Connection::processMessage(string user, string msg)
 void Connection::acceptConnection()
 {
     SOCKET new_socket;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
-    
+
     //blocking until a new user connects to the server
-    if ((new_socket = accept(hServerSocket, (struct sockaddr *)&address, &addrlen)) != INVALID_SOCKET)
+    if ((new_socket = Socket::acceptConnection(hServerSocket)) != (SOCKET)(-1))
     {        
         //enter critical section
         userCriticalSection.enterCriticalSection();
@@ -345,7 +325,7 @@ void Connection::acceptConnection()
         if (user_count == MAX_CLIENTS)
         {
             //close new sockets once max user count has been reached
-            closesocket(new_socket);
+            Socket::closeTheSocket(new_socket);
 
             //leave critical section
             userCriticalSection.leaveCriticalSection();
@@ -386,11 +366,10 @@ void Connection::acceptConnection()
 }
 
 //actual thread function for reading messages from clients and accepting connections
-void Connection::InternalReadMessageThread()
+void Connection::InternalReadMessageThreadFunc()
 {
     set<SOCKET>::iterator i;
     SOCKET sock;
-    unsigned int max_sd = 0;
     int activity = 0;
     char buffer[MAX_LINE_SIZE] = {0};
     int size = 0;
@@ -398,48 +377,21 @@ void Connection::InternalReadMessageThread()
     string localmsg;
     set<SOCKET> localsockets;
 
-    //set of socket descriptors
-    fd_set readfds;
-
     while (ALWAYS_TRUE)
     {
-        //clear the socket set
-        FD_ZERO(&readfds);
-
         //make a local copy of the sockets so they are immune to external changes
         userCriticalSection.enterCriticalSection();
         localsockets = sockets;
         userCriticalSection.leaveCriticalSection();
 
-        //add server socket for accept
-        FD_SET(hServerSocket, &readfds);
-        max_sd = hServerSocket;
-       
-        //if we have clients connected
-        if (localsockets.begin() != localsockets.end())
-        {
-            //go through each socket and add them
-            for (i = localsockets.begin(); i != localsockets.end(); i++)
-            {
-                sock = *i;
-                FD_SET(sock, &readfds);
-            }
-            //go to last socket
-            i--;
-            //its value would be maximum due to set being ordered
-            max_sd = MaxCS(*i, max_sd);
-        }
-
-        //blocking function
-        //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
-        activity = select( max_sd + 1 , &readfds , NULL , NULL , NULL);
+        activity = Socket::doSelect(localsockets);               
 
         //error
         if ((activity < 0) && (errno != EINTR)) 
             continue;
 
         //check for accept
-        if (FD_ISSET(hServerSocket, &readfds))
+        if (Socket::isSocketSet(hServerSocket))
         {
             //accept the new connection
             acceptConnection();
@@ -451,10 +403,10 @@ void Connection::InternalReadMessageThread()
             sock = *i;
 
             //read message, if we have one
-            if (FD_ISSET(sock, &readfds))
+            if (sock != hServerSocket && Socket::isSocketSet(sock))
             {
                 //read as many bytes as we can
-                if ((size = recv(sock, buffer, sizeof(buffer), 0)) > 0)
+                if ((size = Socket::receiveOnSocket(sock, buffer, sizeof(buffer))) > 0)
                 {
                     //add terminating character to string
                     buffer[size] = '\0';
@@ -505,7 +457,7 @@ void Connection::deleteConnection(SOCKET sock)
         //delete the socket from the list
         sockets.erase(sock);
         //close the socket
-        closesocket(sock);
+        Socket::closeTheSocket(sock);
 
         //get user
         string user = sock_user[sock];
@@ -532,7 +484,7 @@ void Connection::deleteConnection(SOCKET sock)
 }
 
 //actual thread function
-void Connection::InternalSendMessageThread()
+void Connection::InternalSendMessageThreadFunc()
 {
     writemessage writemsg;
     int result;
@@ -558,10 +510,10 @@ void Connection::InternalSendMessageThread()
         if (writemsg.room[0] == ' ')
         {
             //send the message to the user
-            result = send( sock, writemsg.msg.c_str(), writemsg.msg.length(), 0 );
+            result = Socket::sendOnSocket(sock, writemsg.msg.c_str(), writemsg.msg.length());
 
             //if error, close the connection
-            if (result == SOCKET_ERROR) 
+            if (result == -1) 
             {
                 //delete the connection
                 deleteConnection(sock);
@@ -721,46 +673,20 @@ int Connection::whisper(string acting_user, string dest_user, string message)
 int Connection::init(int port_number)
 {
     //start winsock2
-    WSADATA wsaData;
-    WORD wVersion = MAKEWORD( 2, 0 );
-    if ( WSAStartup( wVersion, &wsaData ) != 0 )
-        return CS_FAIL;    
+    if (Socket::globalInit() == CS_FAIL)
+        return CS_FAIL;
 
     //try to create the socket
-    hServerSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if ( hServerSocket == INVALID_SOCKET )
+    if ((hServerSocket = Socket::createServerSocket(port_number)) == (SOCKET)(-1))
     {
-        // Cleanup the environment initialized by WSAStartup()
-        WSACleanup();
-        return CS_FAIL;
-    }
-
-    // Create the structure for binding the socket to the listening port
-    struct sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;     
-    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY); //inet_addr( "127.0.0.1" );
-    serverAddr.sin_port = htons((USHORT)port_number);
-
-    // Bind the Server socket to the address & port
-    if ( bind( hServerSocket, ( struct sockaddr * ) &serverAddr, sizeof( serverAddr ) ) == SOCKET_ERROR )
-    {
-        // Free the socket and cleanup the environment initialized by WSAStartup()
-        closesocket(hServerSocket);
-        WSACleanup();
-        return CS_FAIL;
-    }
-
-    // Put the Server socket in listen state so that it can wait for client connections
-    if ( listen( hServerSocket, SOMAXCONN ) == SOCKET_ERROR )
-    {
-        // Free the socket and cleanup the environment initialized by WSAStartup()
-        closesocket(hServerSocket);
-        WSACleanup() ;
         return CS_FAIL;
     }
 
     //initial user count
     user_count = 0;
+
+    //add server socket to the sockets set
+    sockets.insert(hServerSocket);
 
     //create message list semaphore
     readMsgListEmpty.create(0);
@@ -768,33 +694,15 @@ int Connection::init(int port_number)
     //create message list semaphore
     writeMsgListEmpty.create(0);
 
-    //create threads
-    HANDLE hClientThread;
-    DWORD dwThreadId;
-
     //start two threads:    
     // - one thread for reading messages from clients and accepting new connections
     // - one thread for sending messages to clients
 
     // Start the client thread and pass this instance to it
-    hClientThread = CreateThread( NULL, 0,
-        ( LPTHREAD_START_ROUTINE ) ReadMessageThread,
-        ( LPVOID ) this, 0, &dwThreadId ) ;
-    if ( hClientThread != NULL )
-    {
-        //close handle now so that thread may finish when the worker function ends
-        CloseHandle( hClientThread );
-    }
+    readMessageThread.create(readMessageThreadFunc, this);
 
     // Start the client thread and pass this instance to it
-    hClientThread = CreateThread( NULL, 0,
-        ( LPTHREAD_START_ROUTINE ) SendMessageThread,
-        ( LPVOID ) this, 0, &dwThreadId ) ;
-    if ( hClientThread != NULL )
-    {
-        //close handle now so that thread may finish when the worker function ends
-        CloseHandle( hClientThread );
-    }
+    sendMessageThread.create(sendMessageThreadFunc, this);
     
     //mark server as started
     started = TRUE;

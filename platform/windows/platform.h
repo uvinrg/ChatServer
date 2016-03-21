@@ -32,7 +32,10 @@ using namespace std;
 
 #include "../../src/defs.h"
 #include "../../src/win32/w32semaphore.h"
+#include "../../src/win32/w32thread.h"
+#include "../../src/win32/w32socket.h"
 #include "../../src/critsection.h"
 #include "../../src/connection.h"
 
 #endif //__CHATSERVER_PLATFORM_H__
+

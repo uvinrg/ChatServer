@@ -5,8 +5,8 @@
 
 ----------------------------------------*/
 
-#ifndef __CHATSERVER_UNIXSEMAPHORE_H__
-#define __CHATSERVER_UNIXSEMAPHORE_H__
+#ifndef __CHATSERVER_W32SEMAPHORE_H__
+#define __CHATSERVER_W32SEMAPHORE_H__
 
 class Semaphore
 {
@@ -19,7 +19,8 @@ public:
 
     ~Semaphore()
     {
-        //TODO CLOSE SEMAPHORE
+        if (semaphore != NULL)
+            CloseHandle(semaphore);
     }
 
     //create a semaphore with an initial count
@@ -31,9 +32,9 @@ public:
     //until another thread increases count by at least 1
     int wait();
 private:
-    //TODO SEMAPHORE HANDLE
+    HANDLE semaphore;
 };
 
-#endif //__CHATSERVER_UNIXSEMAPHORE_H__
+#endif //__CHATSERVER_W32SEMAPHORE_H__
 
 

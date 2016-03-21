@@ -79,9 +79,9 @@ public:
     int isValidMessage(string name);
 
     //thread for receiving messages
-    void InternalReadMessageThread();
+    void InternalReadMessageThreadFunc();
     //thread for sending messages
-    void InternalSendMessageThread();
+    void InternalSendMessageThreadFunc();
 
     int telnet_decode(string &msg, char* buffer, int size, SOCKET socket);
 
@@ -94,6 +94,12 @@ private:
 
     //the list of sockets
     set<SOCKET> sockets;
+
+    //the read message thread
+    Thread readMessageThread;
+
+    //the send message thread
+    Thread sendMessageThread;
 
     map<SOCKET, string> sock_user; //map to get from socket to user
     map<string, SOCKET> user_sock; //map to get from user to socket

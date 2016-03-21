@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="unix">
+      <UniqueIdentifier>{fc9e52c3-49e5-4c2e-b446-001fd1b7e45f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\connection.cpp">
@@ -31,13 +34,13 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\unix\unixsemaphore.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>unix</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\unix\unixsocket.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>unix</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\unix\unixthread.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>unix</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -60,13 +63,30 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\unix\unixsemaphore.h">
-      <Filter>Header Files</Filter>
+      <Filter>unix</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\unix\unixsocket.h">
-      <Filter>Header Files</Filter>
+      <Filter>unix</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\unix\unixthread.h">
+      <Filter>unix</Filter>
+    </ClInclude>
+    <ClInclude Include="..\unix\config.h">
+      <Filter>unix</Filter>
+    </ClInclude>
+    <ClInclude Include="..\unix\platform.h">
+      <Filter>unix</Filter>
+    </ClInclude>
+    <ClInclude Include="config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="platform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\unix\Makefile">
+      <Filter>unix</Filter>
+    </None>
   </ItemGroup>
 </Project>

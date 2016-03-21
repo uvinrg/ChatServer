@@ -48,6 +48,22 @@
     <ClInclude Include="..\..\src\win32\w32semaphore.h" />
     <ClInclude Include="..\..\src\win32\w32socket.h" />
     <ClInclude Include="..\..\src\win32\w32thread.h" />
+    <ClInclude Include="..\unix\config.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\unix\platform.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="config.h" />
+    <ClInclude Include="platform.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\unix\Makefile">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F5F0853F-28ED-4762-98EA-2988D9BCF42B}</ProjectGuid>
