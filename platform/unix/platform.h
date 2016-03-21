@@ -10,10 +10,20 @@
 
 #include "config.h"
 
+#define SOCKET int
+typedef int                 BOOL;
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <errno.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 //STL
 #include <string>

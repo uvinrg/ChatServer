@@ -12,15 +12,15 @@ class Semaphore
 {
 public:
     Semaphore():
-        semaphore(NULL) 
+        isinit(FALSE)
     { 
         ;
     }
 
     ~Semaphore()
     {
-        if (semaphore != NULL)
-            CloseHandle(semaphore);
+        if (isinit)
+            sem_destroy(&semaphore);
     }
 
     //create a semaphore with an initial count
@@ -32,7 +32,8 @@ public:
     //until another thread increases count by at least 1
     int wait();
 private:
-    HANDLE semaphore;
+    sem_t semaphore;
+    int isinit;
 };
 
 #endif //__CHATSERVER_W32SEMAPHORE_H__

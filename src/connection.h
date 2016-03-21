@@ -35,7 +35,7 @@ public:
         if (started)
         {
             started = FALSE;
-            WSACleanup();
+            Socket::globalShutdown();
         }
     }
 

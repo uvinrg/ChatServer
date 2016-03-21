@@ -38,4 +38,4 @@ enum
     CS_FAIL                = -2
 };
 
-#endif __CHATSERVER_DEFS_H__
+#endif //__CHATSERVER_DEFS_H__

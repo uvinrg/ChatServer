@@ -119,7 +119,7 @@ void Connection::processMessage(string user, string msg)
         {
             string newuser = msg;
             //make all letters lowercase
-            transform(newuser.begin(), newuser.end(), newuser.begin(), tolower);
+            transform(newuser.begin(), newuser.end(), newuser.begin(), ::tolower);
 
             //check if username exists
             if (user_sock.find(newuser) != user_sock.end())
@@ -180,7 +180,7 @@ void Connection::processMessage(string user, string msg)
         if (isValidName(room_name))
         {
             //make room lowercase
-            transform(room_name.begin(), room_name.end(), room_name.begin(), tolower);
+            transform(room_name.begin(), room_name.end(), room_name.begin(), ::tolower);
 
             //remove user from other rooms if he's there
             if (user_room.find(user) != user_room.end())
@@ -261,7 +261,7 @@ void Connection::processMessage(string user, string msg)
         if (isValidName(user_name) && message.compare("") != 0)
         {
             //make name lowercase
-            transform(user_name.begin(), user_name.end(), user_name.begin(), tolower);
+            transform(user_name.begin(), user_name.end(), user_name.begin(), ::tolower);
 
             //try to find name
             if (user_sock.find(user_name) == user_sock.end())
@@ -373,7 +373,6 @@ void Connection::InternalReadMessageThreadFunc()
     int activity = 0;
     char buffer[MAX_LINE_SIZE] = {0};
     int size = 0;
-    int result = 0;
     string localmsg;
     set<SOCKET> localsockets;
 
@@ -418,7 +417,7 @@ void Connection::InternalReadMessageThreadFunc()
 
                     //use telnet RFC to check for backspace, delete, newline, etc
                     //the new part of the message into the old message
-                    result = telnet_decode(localmsg, buffer, strlen(buffer), sock);     
+                    telnet_decode(localmsg, buffer, strlen(buffer), sock);     
 
                     //store the new partial message back
                     userCriticalSection.enterCriticalSection();
@@ -699,10 +698,10 @@ int Connection::init(int port_number)
     // - one thread for sending messages to clients
 
     // Start the client thread and pass this instance to it
-    readMessageThread.create(readMessageThreadFunc, this);
+    readMessageThread.create(readMessageThreadFunc, (void*)this);
 
     // Start the client thread and pass this instance to it
-    sendMessageThread.create(sendMessageThreadFunc, this);
+    sendMessageThread.create(sendMessageThreadFunc, (void*)this);
     
     //mark server as started
     started = TRUE;

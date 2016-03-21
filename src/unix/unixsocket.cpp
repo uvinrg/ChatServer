@@ -6,28 +6,21 @@
 ----------------------------------------*/
 
 #include "platform.h"
-#include "w32socket.h"
+#include "unixsocket.h"
 
 fd_set Socket::readfds;
 
 //Initialized socket system
 int Socket::globalInit()
 {
-    //start winsock2
-    WSADATA wsaData;
-    WORD wVersion = MAKEWORD( 2, 0 );
-    if ( WSAStartup( wVersion, &wsaData ) != 0 )
-        return CS_FAIL;    
-
+    //no global init needed on unix
     return CS_OK;
 }
 
 //Exist socket system
 int Socket::globalShutdown()
 {
-    //close winsock2
-    WSACleanup();
-
+    //no global shutdown needed on unix
     return CS_OK;
 }
 
@@ -36,7 +29,7 @@ SOCKET Socket::createServerSocket(int port_number)
 {
     //try to create the socket
     SOCKET hServerSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if ( hServerSocket == INVALID_SOCKET )
+    if ( hServerSocket == (SOCKET)(-1) )
     {
         return (SOCKET)(-1);
     }
@@ -45,21 +38,21 @@ SOCKET Socket::createServerSocket(int port_number)
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;     
     serverAddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-    serverAddr.sin_port = htons((USHORT)port_number);
+    serverAddr.sin_port = htons((uint32_t)port_number);
 
     // Bind the Server socket to the address & port
-    if ( bind( hServerSocket, ( struct sockaddr * ) &serverAddr, sizeof( serverAddr ) ) == SOCKET_ERROR )
+    if ( bind( hServerSocket, ( struct sockaddr * ) &serverAddr, sizeof( serverAddr ) ) == -1 )
     {
         // Free the socket and cleanup the environment initialized by WSAStartup()
-        closesocket(hServerSocket);
+        close(hServerSocket);
         return (SOCKET)(-1);
     }
 
     // Put the Server socket in listen state so that it can wait for client connections
-    if ( listen( hServerSocket, SOMAXCONN ) == SOCKET_ERROR )
+    if ( listen( hServerSocket, SOMAXCONN ) == -1 )
     {
         // Free the socket and cleanup the environment initialized by WSAStartup()
-        closesocket(hServerSocket);
+        close(hServerSocket);
         return (SOCKET)(-1);
     }
 
@@ -72,9 +65,9 @@ SOCKET Socket::acceptConnection(SOCKET listening_socket)
 {
     SOCKET new_socket;
     struct sockaddr_in address;
-    int addrlen = sizeof(address);
+    socklen_t addrlen = sizeof(address);
 
-    if ((new_socket = accept(listening_socket, (struct sockaddr *)&address, &addrlen)) != INVALID_SOCKET)
+    if ((new_socket = accept(listening_socket, (struct sockaddr *)&address, &addrlen)) != -1)
         return new_socket;
     else
         return (SOCKET)(-1);
@@ -83,7 +76,7 @@ SOCKET Socket::acceptConnection(SOCKET listening_socket)
 //close a socket
 void Socket::closeTheSocket(SOCKET sock)
 {
-    closesocket(sock);
+    close(sock);
 }
 
 //do a select waiting for an event on a set of sockets
@@ -129,11 +122,11 @@ int Socket::isSocketSet(SOCKET& sock)
 //block and wait for receiving data on a socket
 int Socket::receiveOnSocket(SOCKET sock, char* buffer, int buff_size)
 {
-    return recv(sock, buffer, buff_size, 0);
+    return read(sock, buffer, buff_size );
 }
 
 //send data through a socket
 int Socket::sendOnSocket(SOCKET sock, const char* buffer, int buff_size)
 {
-    return send( sock, buffer, buff_size, 0 );
+    return write( sock, buffer, buff_size );
 }

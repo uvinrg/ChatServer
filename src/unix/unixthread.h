@@ -8,17 +8,17 @@
 #ifndef __CHATSERVER_W32THREAD_H__
 #define __CHATSERVER_W32THREAD_H__
 
+typedef void* (*func_type)(void*);
+
 //dummy thread function to call the object's thread function
-DWORD WINAPI readMessageThreadFunc( LPVOID lpData );
+void* readMessageThreadFunc( void* data );
 //dummy thread function to call the object's thread function
-DWORD WINAPI sendMessageThreadFunc( LPVOID lpData );
+void* sendMessageThreadFunc( void* data );
 
 class Thread
 {
 public:
-    Thread():
-        hClientThread(NULL),
-        dwThreadId(0)
+    Thread()
     { 
         ;
     }
@@ -31,10 +31,9 @@ public:
     //create a thread
     //given a function name
     //and the parameter to be given to it
-    int create(void* function_name, void* parameter);
-private:
-    DWORD dwThreadId;
-    HANDLE hClientThread;
+    int create(func_type function_name, void* parameter);
+private:    
+    pthread_t threadid;
 };
 
 #endif //__CHATSERVER_W32THREAD_H__

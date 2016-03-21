@@ -10,37 +10,32 @@
 
 //create a semaphore with an initial and a max count
 int Semaphore::create(int initial_count)
-{
-    //check for existing semaphore
-    if (semaphore != NULL)
-        CloseHandle(semaphore);
-    
-    int max_count = ((UINT32)1 << 31) - 1;
-
-    semaphore = CreateSemaphore( 
-        NULL,           // default security attributes
-        initial_count,  // initial count
-        max_count,      // maximum count
-        NULL);          // unnamed semaphore
-
-    if (semaphore == NULL) 
+{  
+    //create semaphore
+    if (sem_init(&semaphore, 0, initial_count) < 0)
     {
+        isinit = FALSE;
         return CS_FAIL;
     }
-
-    return CS_OK;
+    else
+    {
+        isinit = TRUE;
+        return CS_OK;
+    }
 }
 
 //increase its count by the specified amount
 int Semaphore::increaseCount(int increase_amount)
 {
-    if (ReleaseSemaphore( 
-            semaphore,        // handle to semaphore
-            increase_amount,  // increase count by the amount specified
-            NULL)             // not interested in previous count
-            == 0)
-    {
+    int i;
+
+    if (!isinit)
         return CS_FAIL;
+        
+    for (i = 0; i < increase_amount; i++)
+    {
+        if (sem_post(&semaphore) < 0)
+            return CS_FAIL;
     }
 
     return CS_OK;
@@ -51,7 +46,10 @@ int Semaphore::increaseCount(int increase_amount)
 //until another thread increases count by at least 1
 int Semaphore::wait()
 {
-    WaitForSingleObject( semaphore, INFINITE );
+    if (!isinit)
+        return CS_FAIL;
+
+    sem_wait(&semaphore);
 
     return CS_OK;
 }

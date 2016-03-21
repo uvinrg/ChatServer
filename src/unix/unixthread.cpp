@@ -6,39 +6,37 @@
 ----------------------------------------*/
 
 #include "platform.h"
-#include "w32thread.h"
+#include "unixthread.h"
 
 //dummy thread function to call the object's thread function
-DWORD WINAPI readMessageThreadFunc( LPVOID lpData )
+void* readMessageThreadFunc( void* data )
 {
-    Connection *conn = (Connection*)lpData;
+    Connection *conn = (Connection*)data;
     conn->InternalReadMessageThreadFunc();
 
-    return CS_OK;
+    return NULL;
 }
 
 //dummy thread function to call the object's thread function
-DWORD WINAPI sendMessageThreadFunc( LPVOID lpData )
+void* sendMessageThreadFunc( void* data )
 {
-    Connection *conn = (Connection*)lpData;
+    Connection *conn = (Connection*)data;
     conn->InternalSendMessageThreadFunc();
 
-    return CS_OK;
+    return NULL;
 }
 
 //create a thread
 //given a function name
 //and the parameter to be given to it
-int Thread::create(void* function_name, void* parameter)
+int Thread::create(func_type function_name, void* parameter)
 {
     // Start the client thread and pass this instance to it
-    hClientThread = CreateThread( NULL, 0,
-        ( LPTHREAD_START_ROUTINE ) function_name,
-        ( LPVOID ) parameter, 0, &dwThreadId ) ;
-    if ( hClientThread != NULL )
+    int result = pthread_create(&threadid, NULL, function_name, parameter);
+
+    if ( result != 0 )
     {
-        //close handle now so that thread may finish when the worker function ends
-        CloseHandle( hClientThread );
+        return FALSE;
     }
 
     return TRUE;
