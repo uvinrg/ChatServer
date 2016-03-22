@@ -13,6 +13,16 @@
 #define SOCKET int
 typedef int                 BOOL;
 
+#ifdef __APPLE__
+//macos allows redefinition of setsize for select just like windows
+#   define FD_SETSIZE      ((MAX_CLIENTS) + 1)
+#else //__APPLE__
+//linux requires some additional hacks to increase size for select
+#   include <sys/types.h> 
+#   undef __FD_SETSIZE
+#   define __FD_SETSIZE ((MAX_CLIENTS) + 1)
+#endif //__APPLE__
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -33,10 +43,6 @@ typedef int                 BOOL;
 #include <set>
 #include <queue>
 #include <algorithm>
-
-//////our FD_SET structure must accomodate all clients plus the server listen socket
-////#define FD_SETSIZE      (MAX_CLIENTS + 1)
-////#include <winsock2.h>
 
 #include "../../src/defs.h"
 #include "../../src/unix/unixsemaphore.h"
