@@ -24,8 +24,6 @@
 #include <queue>
 #include <algorithm>
 
-using namespace std;
-
 //our FD_SET structure must accomodate all clients plus the server listen socket
 #define FD_SETSIZE      (MAX_CLIENTS + 1)
 #include <winsock2.h>

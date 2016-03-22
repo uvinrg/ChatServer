@@ -8,11 +8,18 @@
 #include "platform.h"
 #include "unixsemaphore.h"
 
+static int semaphore_names = 1;
+
 //create a semaphore with an initial and a max count
 int Semaphore::create(int initial_count)
 {  
+    //get a unique name for each semaphore created
+    semname = "/mysem" + std::to_string(semaphore_names++);
+
     //create semaphore
-    if (sem_init(&semaphore, 0, initial_count) < 0)
+    sem_unlink(semname.c_str());
+    semaphore = sem_open(semname.c_str(), O_CREAT, 0660, initial_count);        
+    if (semaphore == SEM_FAILED)
     {
         isinit = FALSE;
         return CS_FAIL;
@@ -34,7 +41,7 @@ int Semaphore::increaseCount(int increase_amount)
         
     for (i = 0; i < increase_amount; i++)
     {
-        if (sem_post(&semaphore) < 0)
+        if (sem_post(semaphore) < 0)
             return CS_FAIL;
     }
 
@@ -48,8 +55,6 @@ int Semaphore::wait()
 {
     if (!isinit)
         return CS_FAIL;
-
-    sem_wait(&semaphore);
-
+    sem_wait(semaphore);
     return CS_OK;
 }

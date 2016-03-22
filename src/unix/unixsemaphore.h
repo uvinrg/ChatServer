@@ -20,7 +20,10 @@ public:
     ~Semaphore()
     {
         if (isinit)
-            sem_destroy(&semaphore);
+        {
+            sem_close(semaphore);
+            sem_unlink(semname.c_str());            
+        }
     }
 
     //create a semaphore with an initial count
@@ -32,7 +35,8 @@ public:
     //until another thread increases count by at least 1
     int wait();
 private:
-    sem_t semaphore;
+    sem_t *semaphore;
+    std::string semname;
     int isinit;
 };
 

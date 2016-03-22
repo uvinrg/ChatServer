@@ -28,7 +28,7 @@ public:
     static void closeTheSocket(SOCKET sock);
 
     //do a select waiting for an event on a set of sockets
-    static int doSelect(set<SOCKET>& sockets);
+    static int doSelect(std::set<SOCKET>& sockets);
     //check if a socket was set by select
     static int isSocketSet(SOCKET& sock);
     //block and wait for receiving data on a socket

@@ -80,9 +80,9 @@ void Socket::closeTheSocket(SOCKET sock)
 }
 
 //do a select waiting for an event on a set of sockets
-int Socket::doSelect(set<SOCKET>& localsockets)
+int Socket::doSelect(std::set<SOCKET>& localsockets)
 {
-    set<SOCKET>::iterator i;
+    std::set<SOCKET>::iterator i;
     SOCKET sock;
     int max_sd = 0;
     int activity;

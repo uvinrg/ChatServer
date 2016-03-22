@@ -24,6 +24,7 @@ typedef int                 BOOL;
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 
 //STL
 #include <string>
@@ -32,8 +33,6 @@ typedef int                 BOOL;
 #include <set>
 #include <queue>
 #include <algorithm>
-
-using namespace std;
 
 //////our FD_SET structure must accomodate all clients plus the server listen socket
 ////#define FD_SETSIZE      (MAX_CLIENTS + 1)

@@ -9,7 +9,7 @@
 #include "connection.h"
 
 //rename a user
-void Connection::renameUser(string olduser, string newuser)
+void Connection::renameUser(std::string olduser, std::string newuser)
 {
     //enter critical section
     userCriticalSection.enterCriticalSection();
@@ -31,13 +31,13 @@ void Connection::renameUser(string olduser, string newuser)
 }
 
 //remove user from a room
-void Connection::removeFromRoom(string user)
+void Connection::removeFromRoom(std::string user)
 {
     //remove user from the room
     userCriticalSection.enterCriticalSection();
 
     //get room name
-    string room = user_room[user];
+    std::string room = user_room[user];
     //delete the room entry
     user_room.erase(user);
     //delete user from the room
@@ -56,7 +56,7 @@ void Connection::removeFromRoom(string user)
 }
 
 //check if the name is valid
-int Connection::isValidName(string name)
+int Connection::isValidName(std::string name)
 {
     BOOL valid = TRUE;
     //only alphanumeric letters, _ and . are allowed
@@ -76,7 +76,7 @@ int Connection::isValidName(string name)
 }
 
 //check if the message is valid
-int Connection::isValidMessage(string msg)
+int Connection::isValidMessage(std::string msg)
 {
     BOOL valid = TRUE;
     //only printable characters allowed
@@ -94,7 +94,7 @@ int Connection::isValidMessage(string msg)
 }
 
 //process message based on the message and user state
-void Connection::processMessage(string user, string msg)
+void Connection::processMessage(std::string user, std::string msg)
 {
     //check for quit command
     if (msg.compare("/quit") == 0)
@@ -117,7 +117,7 @@ void Connection::processMessage(string user, string msg)
         //check if the user name is valid
         if (isValidName(msg))
         {
-            string newuser = msg;
+            std::string newuser = msg;
             //make all letters lowercase
             transform(newuser.begin(), newuser.end(), newuser.begin(), ::tolower);
 
@@ -156,15 +156,15 @@ void Connection::processMessage(string user, string msg)
     if (msg.compare("/rooms") == 0)
     {
         int usercnt;
-        string message = "Active rooms are:\r\n";
-        map<string, set<string> >::iterator it;
+        std::string message = "Active rooms are:\r\n";
+        std::map<std::string, std::set<std::string> >::iterator it;
         //go through each room in the list
         for (it = rooms.begin(); it != rooms.end(); it++)
         {
             //get its user count
             usercnt = it->second.size();
             //write the room's description in the message
-            message += "* " + it->first + " (" + to_string(usercnt) + ")\r\n";
+            message += "* " + it->first + " (" + std::to_string(usercnt) + ")\r\n";
         }
         message += "end of list.";
         //send the message to the user
@@ -175,7 +175,7 @@ void Connection::processMessage(string user, string msg)
     //join
     if (msg.substr(0, 6).compare("/join ") == 0)
     {
-        string room_name = msg.substr(6);
+        std::string room_name = msg.substr(6);
         //check if the room name is valid
         if (isValidName(room_name))
         {
@@ -191,14 +191,14 @@ void Connection::processMessage(string user, string msg)
             //inform people about the new user
             sendMessageToOthers("* new user joined chat: " + user, room_name);
 
-            string message = "entering room: " + room_name + "\r\n";
+            std::string message = "entering room: " + room_name + "\r\n";
 
             //add user to room
             user_room[user] = room_name;
             rooms[room_name].insert(user);
 
             //list users in the room
-            set<string>::iterator it;
+            std::set<std::string>::iterator it;
             //for each user in the new room
             for (it = rooms[room_name].begin(); it != rooms[room_name].end(); it++)
             {
@@ -249,11 +249,11 @@ void Connection::processMessage(string user, string msg)
     if (msg.substr(0, 9).compare("/whisper ") == 0)
     {
         //get user name and message
-        string user_name = msg.substr(9);
+        std::string user_name = msg.substr(9);
         //find start of message
         int poz = user_name.find(" ");        
         //extract message
-        string message = poz > 0 ? user_name.substr(poz + 1) : "";
+        std::string message = poz > 0 ? user_name.substr(poz + 1) : "";
         //extract user name
         user_name = user_name.substr(0, poz);
 
@@ -337,7 +337,7 @@ void Connection::acceptConnection()
         //such a name is illegal for user names and can help differentiate
         //users which have not yet chosen a user name
         sock_user[new_socket] = " ";
-        sock_user[new_socket] += to_string(user_count);
+        sock_user[new_socket] += std::to_string(user_count);
         user_sock[ sock_user[new_socket] ] = new_socket;
         //create an empty partial message for the user
         messages[new_socket] = "";
@@ -368,13 +368,13 @@ void Connection::acceptConnection()
 //actual thread function for reading messages from clients and accepting connections
 void Connection::InternalReadMessageThreadFunc()
 {
-    set<SOCKET>::iterator i;
+    std::set<SOCKET>::iterator i;
     SOCKET sock;
     int activity = 0;
     char buffer[MAX_LINE_SIZE] = {0};
     int size = 0;
-    string localmsg;
-    set<SOCKET> localsockets;
+    std::string localmsg;
+    std::set<SOCKET> localsockets;
 
     while (ALWAYS_TRUE)
     {
@@ -430,7 +430,7 @@ void Connection::InternalReadMessageThreadFunc()
                     //but we received 0 bytes or we get an error
                     //means the connection closed, so we remove the user
                     //from the server
-                    string user = sock_user[sock];
+                    std::string user = sock_user[sock];
                     //check if user is in a room
                     if (user_room.find(user) != user_room.end())
                     {
@@ -459,7 +459,7 @@ void Connection::deleteConnection(SOCKET sock)
         Socket::closeTheSocket(sock);
 
         //get user
-        string user = sock_user[sock];
+        std::string user = sock_user[sock];
             
         //clean user info
         sock_user.erase(sock);
@@ -523,7 +523,7 @@ void Connection::InternalSendMessageThreadFunc()
 }
 
 //take the code from the buffer and transform it into a string
-int Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET socket)
+int Connection::telnet_decode(std::string &msg, char* buffer, int size, SOCKET socket)
 {
 	//parse the received buffer 
 	for(int i = 0; i < size; i++)
@@ -532,7 +532,7 @@ int Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET socket
         if (i == 0 && (buffer[i] < 32 || buffer[i] > 126) && buffer[i] != 13 && buffer[i] != 10 )
             return CS_INVALID_ARGS;
 		//if delete or backspace ascii code remove next character
-		if( buffer[i] == 127 ||  buffer[i] == 224)
+		if( buffer[i] == 127 ||  (unsigned char)(buffer[i]) == 224)
 		{            
 			continue;
 		}
@@ -578,7 +578,7 @@ int Connection::telnet_decode(string &msg, char* buffer, int size, SOCKET socket
 }
 
 //receive next message from someone
-int Connection::receiveNextMessage(string& user, string& message)
+int Connection::receiveNextMessage(std::string& user, std::string& message)
 {
     readmessage readmsg;
 
@@ -602,14 +602,14 @@ int Connection::receiveNextMessage(string& user, string& message)
 }
 
 //send a message to all users in a room
-int Connection::sendMessageToOthers(string message, string room)
+int Connection::sendMessageToOthers(std::string message, std::string room)
 {
     //if the room does not exist, no message to send
     if (rooms.find(room) == rooms.end())
         return CS_FAIL;
     
     //send the same message to every user in a room
-    set<string>::iterator it;
+    std::set<std::string>::iterator it;
     //go through each user in the room
     for (it = rooms[room].begin(); it != rooms[room].end(); it++)
     {
@@ -621,7 +621,7 @@ int Connection::sendMessageToOthers(string message, string room)
 }
 
 //send a message back to the user from the server
-int Connection::sendMessageToUser(string user, string message)
+int Connection::sendMessageToUser(std::string user, std::string message)
 {
     writemessage writemsg;
     writemsg.user = user;
@@ -641,28 +641,28 @@ int Connection::sendMessageToUser(string user, string message)
 
 //join a non-empty room or create one if room does not exist
 //placing the user in that room
-int Connection::joinRoom(string user, string room)
+int Connection::joinRoom(std::string user, std::string room)
 {
 
     return CS_OK;
 }
 
 //leave a room, deleting it if it now contains no users
-int Connection::leaveRoom(string user, string room)
+int Connection::leaveRoom(std::string user, std::string room)
 {
 
     return CS_OK;
 }
 
 //list non-empty rooms
-int Connection::listRooms(string user)
+int Connection::listRooms(std::string user)
 {
 
     return CS_OK;
 }
 
 //whisper from user1 to user2 with the message
-int Connection::whisper(string acting_user, string dest_user, string message)
+int Connection::whisper(std::string acting_user, std::string dest_user, std::string message)
 {
 
     return CS_OK;
@@ -711,7 +711,7 @@ int Connection::init(int port_number)
 
 int Connection::start_on(int port_number)
 {
-    string user, message;    
+    std::string user, message;    
 
     //try to start the server
     if (init(port_number) != CS_OK)

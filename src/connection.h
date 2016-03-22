@@ -10,15 +10,15 @@
 
 struct readmessage
 {
-    string user;
-    string msg;
+    std::string user;
+    std::string msg;
 };
 
 struct writemessage
 {
-    string user;
-    string msg;
-    string room;
+    std::string user;
+    std::string msg;
+    std::string room;
 };
 
 class Connection
@@ -44,46 +44,46 @@ public:
     //init
     int init(int port_number);
     //receive next message from someone
-    int receiveNextMessage(string& user, string& message);
+    int receiveNextMessage(std::string& user, std::string& message);
     //send a message to all users in a room
-    int sendMessageToOthers(string message, string room);
+    int sendMessageToOthers(std::string message, std::string room);
     //send a message back to the user from the server
-    int sendMessageToUser(string user, string message);
+    int sendMessageToUser(std::string user, std::string message);
     //join a non-empty room or create one if room does not exist
     //placing the user in that room
-    int joinRoom(string user, string room);    
+    int joinRoom(std::string user, std::string room);    
     //leave a room, deleting it if it now contains no users
-    int leaveRoom(string user, string room);
+    int leaveRoom(std::string user, std::string room);
     //list non-empty rooms
-    int listRooms(string user);
+    int listRooms(std::string user);
     //whisper from user1 to user2 with the message
-    int whisper(string acting_user, string dest_user, string message);
+    int whisper(std::string acting_user, std::string dest_user, std::string message);
     //process message based on the message and user state
-    void processMessage(string user, string msg);
+    void processMessage(std::string user, std::string msg);
 
     //accept a connection once it is confirmed by select
     void acceptConnection();
 
     //rename a user after login
-    void renameUser(string olduser, string newuser);
+    void renameUser(std::string olduser, std::string newuser);
 
     //delete a connection
     void deleteConnection(SOCKET sock);
 
     //removes user from a room
-    void removeFromRoom(string user);
+    void removeFromRoom(std::string user);
 
     //check name is formed only from letters, _ and .
-    int isValidName(string name);
+    int isValidName(std::string name);
     //check message is formed only from printable characters
-    int isValidMessage(string name);
+    int isValidMessage(std::string name);
 
     //thread for receiving messages
     void InternalReadMessageThreadFunc();
     //thread for sending messages
     void InternalSendMessageThreadFunc();
 
-    int telnet_decode(string &msg, char* buffer, int size, SOCKET socket);
+    int telnet_decode(std::string &msg, char* buffer, int size, SOCKET socket);
 
 private:
     //server started indicator
@@ -93,7 +93,7 @@ private:
     SOCKET hServerSocket;
 
     //the list of sockets
-    set<SOCKET> sockets;
+    std::set<SOCKET> sockets;
 
     //the read message thread
     Thread readMessageThread;
@@ -101,10 +101,10 @@ private:
     //the send message thread
     Thread sendMessageThread;
 
-    map<SOCKET, string> sock_user; //map to get from socket to user
-    map<string, SOCKET> user_sock; //map to get from user to socket
-    map<string, string> user_room; //map to get from user to its room
-    map<SOCKET, string> messages; //partially received messages from the users	
+    std::map<SOCKET, std::string> sock_user; //std::map to get from socket to user
+    std::map<std::string, SOCKET> user_sock; //std::map to get from user to socket
+    std::map<std::string, std::string> user_room; //std::map to get from user to its room
+    std::map<SOCKET, std::string> messages; //partially received messages from the users	
 
     //critical section for modifying users
     Critsection userCriticalSection;
@@ -114,17 +114,17 @@ private:
     //sync for waiting if message list to be read is empty
     Semaphore readMsgListEmpty;
     //message list to be read
-    queue<readmessage> readMsgList;
+    std::queue<readmessage> readMsgList;
 
     //sync for write messages
     Critsection writeCriticalSection;    
     //sync for waiting if message list to be written is empty
     Semaphore writeMsgListEmpty;
     //message list to be written
-    queue<writemessage> writeMsgList;
+    std::queue<writemessage> writeMsgList;
 
     //the list of users in each room
-    map<string, set<string> > rooms;
+    std::map<std::string, std::set<std::string> > rooms;
 
     //current number of users on the server
     int user_count;

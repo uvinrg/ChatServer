@@ -45,7 +45,7 @@ public:
             //mark leaving critical section
             state = FALSE;
             //leave critical section
-            semaphore.increaseCount(1);            
+            semaphore.increaseCount(1);    
         }
     }
 private:
