@@ -40,7 +40,7 @@ public:
     }
 
     //start the server
-    int start_on(int port_number);
+    int startOn(int port_number);
     //init
     int init(int port_number);
     //receive next message from someone
@@ -53,7 +53,9 @@ public:
     //placing the user in that room
     int joinRoom(std::string user, std::string room);    
     //leave a room, deleting it if it now contains no users
-    int leaveRoom(std::string user, std::string room);
+    int leaveRoom(std::string user);
+    //quit
+    int quitServer(std::string user);
     //list non-empty rooms
     int listRooms(std::string user);
     //whisper from user1 to user2 with the message
@@ -79,11 +81,11 @@ public:
     int isValidMessage(std::string name);
 
     //thread for receiving messages
-    void InternalReadMessageThreadFunc();
+    void internalReadMessageThreadFunc();
     //thread for sending messages
-    void InternalSendMessageThreadFunc();
+    void internalSendMessageThreadFunc();
 
-    int telnet_decode(std::string &msg, char* buffer, int size, SOCKET socket);
+    int telnetDecode(std::string &msg, char* buffer, int size, SOCKET socket);
 
 private:
     //server started indicator
@@ -127,7 +129,7 @@ private:
     std::map<std::string, std::set<std::string> > rooms;
 
     //current number of users on the server
-    int user_count;
+    int userCount;
 };
 
 #endif //__CHATSERVER_CONNECTION_H__

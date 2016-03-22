@@ -12,7 +12,7 @@
 DWORD WINAPI readMessageThreadFunc( LPVOID lpData )
 {
     Connection *conn = (Connection*)lpData;
-    conn->InternalReadMessageThreadFunc();
+    conn->internalReadMessageThreadFunc();
 
     return CS_OK;
 }
@@ -21,7 +21,7 @@ DWORD WINAPI readMessageThreadFunc( LPVOID lpData )
 DWORD WINAPI sendMessageThreadFunc( LPVOID lpData )
 {
     Connection *conn = (Connection*)lpData;
-    conn->InternalSendMessageThreadFunc();
+    conn->internalSendMessageThreadFunc();
 
     return CS_OK;
 }

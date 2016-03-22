@@ -12,7 +12,7 @@
 void* readMessageThreadFunc( void* data )
 {
     Connection *conn = (Connection*)data;
-    conn->InternalReadMessageThreadFunc();
+    conn->internalReadMessageThreadFunc();
 
     return NULL;
 }
@@ -21,7 +21,7 @@ void* readMessageThreadFunc( void* data )
 void* sendMessageThreadFunc( void* data )
 {
     Connection *conn = (Connection*)data;
-    conn->InternalSendMessageThreadFunc();
+    conn->internalSendMessageThreadFunc();
 
     return NULL;
 }

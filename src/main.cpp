@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 
     //start it
     printf("Starting on %d port number\n", port_number);
-    if (chatserver.start_on(port_number) != 0)
+    if (chatserver.startOn(port_number) != 0)
     {        
         printf("Failed to start!\n");
         return CS_FAIL;
