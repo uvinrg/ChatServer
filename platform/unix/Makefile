@@ -6,7 +6,7 @@
 #-----------------------------------------
 
 CC=g++
-CFLAGS=-c -Wall -std=c++0x
+CFLAGS=-c -Wall -std=c++0x 
 LDFLAGS=-pthread
 INCPATH	 = -I../../platform/unix
 INCPATH	+= -I../platform/unix
