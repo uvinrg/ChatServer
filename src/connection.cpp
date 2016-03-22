@@ -397,27 +397,30 @@ void Connection::internalSendMessageThreadFunc()
         writemsg = writeMsgList.front(); writeMsgList.pop();
         writeCriticalSection.leaveCriticalSection();
 
-        //send the message to destination
-        SOCKET sock = user_sock[writemsg.user];
-
-        //append newline to message
-        writemsg.msg += "\r";
-        writemsg.msg += "\n";
-
-        //if user is in lobby, means we are sending the message only to him
-        if (writemsg.room[0] == ' ')
+        //check if user is still connected
+        if (user_sock.find(writemsg.user) != user_sock.end())
         {
-            //send the message to the user
-            result = Socket::sendOnSocket(sock, writemsg.msg.c_str(), writemsg.msg.length());
+            //send the message to destination
+            SOCKET sock = user_sock[writemsg.user];
 
-            //if error, close the connection
-            if (result == -1) 
+            //append newline to message
+            writemsg.msg += "\r";
+            writemsg.msg += "\n";
+
+            //if user is in lobby, means we are sending the message only to him
+            if (writemsg.room[0] == ' ')
             {
-                //delete the connection
-                deleteConnection(sock);
+                //send the message to the user
+                result = Socket::sendOnSocket(sock, writemsg.msg.c_str(), writemsg.msg.length());
+
+                //if error, close the connection
+                if (result == -1) 
+                {
+                    //delete the connection
+                    deleteConnection(sock);
+                }
             }
         }
-
     }
 }
 
@@ -622,7 +625,9 @@ int Connection::quitServer(std::string user)
     }
     //remove user
     sendMessageToUser(user, "BYE");
-    deleteConnection(user_sock[user]);
+    //delete connection if user still exists
+    if (user_sock.find(user) != user_sock.end())
+        deleteConnection(user_sock[user]);
 
     return CS_OK;
 }
